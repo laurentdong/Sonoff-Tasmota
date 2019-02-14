@@ -75,6 +75,8 @@
 #define D_CMND_MULT "Mult"
 #define D_CMND_SCALE "Scale"
 #define D_CMND_CALC_RESOLUTION "CalcRes"
+#define D_CMND_SUBSCRIBE "Subscribe"
+#define D_CMND_UNSUBSCRIBE "UnSubscribe"
 
 #define D_JSON_INITIATED "Initiated"
 
@@ -103,8 +105,8 @@ const char kCompareOperators[] PROGMEM = "=\0>\0<\0|\0==!=>=<=";
   #define MAX_EXPRESSION_OPERATOR_PRIORITY    4
 #endif   //USE_EXPRESSION
 
-enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION };
-const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION ;
+enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE };
+const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION "|" D_CMND_SUBSCRIBE "|" D_CMND_UNSUBSCRIBE ;
 
 String rules_event_value;
 unsigned long rules_timer[MAX_RULE_TIMERS] = { 0 };
@@ -561,6 +563,30 @@ void RulesEverySecond(void)
       }
     }
   }
+}
+
+bool RulesMqttData(void)
+{
+  char json_event[120];
+  if (XdrvMailbox.data_len < 10) {
+    return true;
+  }
+  StaticJsonBuffer<400> jsonBuf;
+  JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
+  if (!jsonData.success()) {
+    return true;
+  }
+  if (!jsonData["value"].success()) {
+    return true;
+  }
+  const char * value = jsonData["value"];
+  snprintf_P(json_event, sizeof(json_event), PSTR("{\"Topic\":{\"%s\":\"%s\"}}"), XdrvMailbox.topic, value);
+  RulesProcessEvent(json_event);
+
+  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DOMOTICZ D_RECEIVED_TOPIC " %s, " D_DATA " %s"), XdrvMailbox.topic, XdrvMailbox.data);
+  AddLog(LOG_LEVEL_DEBUG_MORE);
+
+  return true;
 }
 
 void RulesSetPower(void)
@@ -1024,6 +1050,18 @@ bool RulesCommand(void)
       }
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
+  } else if (CMND_SUBSCRIBE == command_code) {			//MQTT Subscribe command. Subscribe <Topic>
+  	if (XdrvMailbox.data_len > 0) {
+        char stopic[TOPSZ];
+        snprintf_P(stopic, sizeof(stopic), PSTR("%s/#"), XdrvMailbox.data); // domoticz topic
+        MqttSubscribe(stopic);
+  	}
+  } else if (CMND_UNSUBSCRIBE == command_code) {			//MQTT Un-subscribe command. UnSubscribe <Topic>
+  	if (XdrvMailbox.data_len > 0) {
+        char stopic[TOPSZ];
+        snprintf_P(stopic, sizeof(stopic), PSTR("%s/#"), XdrvMailbox.data); // domoticz topic
+        MqttUnsubscribe(stopic);
+  	}
   }
   else serviced = false;  // Unknown command
 
@@ -1064,6 +1102,9 @@ bool Xdrv10(uint8_t function)
       break;
     case FUNC_RULES_PROCESS:
       result = RulesProcess();
+      break;
+    case FUNC_MQTT_DATA:
+      result = RulesMqttData();
       break;
   }
   return result;
