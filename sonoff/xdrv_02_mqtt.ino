@@ -115,6 +115,12 @@ void MqttSubscribeLib(char *topic)
   MqttClient.loop();  // Solve LmacRxBlk:1 messages
 }
 
+void MqttUnsubscribeLib(char *topic)
+{
+  MqttClient.unsubscribe(topic);
+  MqttClient.loop();  // Solve LmacRxBlk:1 messages
+}
+
 bool MqttPublishLib(const char* topic, bool retained)
 {
   bool result = MqttClient.publish(topic, mqtt_data, retained);
@@ -150,6 +156,11 @@ void MqttDisconnectedCb(void)
 void MqttSubscribeLib(char *topic)
 {
   MqttClient.Subscribe(topic, 0);
+}
+
+void MqttUnsubscribeLib(char *topic)
+{
+  MqttClient.Unsubscribe(topic, 0);
 }
 
 bool MqttPublishLib(const char* topic, bool retained)
@@ -192,6 +203,11 @@ void MqttMyDataCb(String &topic, String &data)
 void MqttSubscribeLib(char *topic)
 {
   MqttClient.subscribe(topic, 0);
+}
+
+void MqttUnsubscribeLib(char *topic)
+{
+  MqttClient.unsubscribe(topic, 0);
 }
 
 bool MqttPublishLib(const char* topic, bool retained)
@@ -255,6 +271,13 @@ void MqttSubscribe(char *topic)
   snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MQTT D_SUBSCRIBE_TO " %s"), topic);
   AddLog(LOG_LEVEL_DEBUG);
   MqttSubscribeLib(topic);
+}
+
+void MqttUnsubscribe(char *topic)
+{
+  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MQTT D_SUBSCRIBE_TO " %s"), topic);
+  AddLog(LOG_LEVEL_DEBUG);
+  MqttUnsubscribeLib(topic);
 }
 
 void MqttPublishDirect(const char* topic, bool retained)
