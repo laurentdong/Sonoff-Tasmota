@@ -64,9 +64,6 @@
 #ifdef USE_SPI
   #include <SPI.h>                          // SPI support, TFT
 #endif  // USE_SPI
-#ifdef USE_EXPRESSION
-  #include <LinkedList.h>                 // Import LinkedList library 
-#endif
 // Structs
 #include "settings.h"
 
@@ -956,7 +953,10 @@ void MqttDataHandler(char* topic, uint8_t* data, unsigned int data_len)
     else if (CMND_TEMPLATE == command_code) {
       // {"NAME":"Generic","GPIO":[17,254,29,254,7,254,254,254,138,254,139,254,254],"FLAG":1,"BASE":255}
       bool error = false;
+
       if (!strstr(dataBuf, "{")) {      // If no JSON it must be parameter
+/*
+        // Version 6.4.1.16 - Add user module config data to template
         bool update = false;
         if ((payload > 0) && (payload <= MAXMODULE)) {
           ModuleDefault(payload -1);    // Copy template module
@@ -983,6 +983,17 @@ void MqttDataHandler(char* topic, uint8_t* data, unsigned int data_len)
               }
             }
             src++;
+          }
+        }
+*/
+        // Version 6.4.1.17 use template as defined
+        if ((payload > 0) && (payload <= MAXMODULE)) {
+          ModuleDefault(payload -1);    // Copy template module
+          if (USER_MODULE == Settings.module) { restart_flag = 2; }
+        }
+        else if (0 == payload) {        // Copy current module with user configured GPIO
+          if (Settings.module != USER_MODULE) {
+            ModuleDefault(Settings.module);
           }
         }
       }
@@ -1699,8 +1710,8 @@ void PublishStatus(uint8_t payload)
   }
 
   if ((0 == payload) || (1 == payload)) {
-    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_CMND_STATUS D_STATUS1_PARAMETER "\":{\"" D_JSON_BAUDRATE "\":%d,\"" D_CMND_GROUPTOPIC "\":\"%s\",\"" D_CMND_OTAURL "\":\"%s\",\"" D_JSON_RESTARTREASON "\":\"%s\",\"" D_JSON_UPTIME "\":\"%s\",\"" D_JSON_STARTUPUTC "\":\"%s\",\"" D_CMND_SLEEP "\":%d,\"" D_JSON_BOOTCOUNT "\":%d,\"" D_JSON_SAVECOUNT "\":%d,\"" D_JSON_SAVEADDRESS "\":\"%X\"}}"),
-      baudrate, Settings.mqtt_grptopic, Settings.ota_url, GetResetReason().c_str(), GetUptime().c_str(), GetDateAndTime(DT_RESTART).c_str(), Settings.sleep, Settings.bootcount, Settings.save_flag, GetSettingsAddress());
+    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_CMND_STATUS D_STATUS1_PARAMETER "\":{\"" D_JSON_BAUDRATE "\":%d,\"" D_CMND_GROUPTOPIC "\":\"%s\",\"" D_CMND_OTAURL "\":\"%s\",\"" D_JSON_RESTARTREASON "\":\"%s\",\"" D_JSON_UPTIME "\":\"%s\",\"" D_JSON_STARTUPUTC "\":\"%s\",\"" D_CMND_SLEEP "\":%d,\"" D_JSON_CONFIG_HOLDER "\":%d,\"" D_JSON_BOOTCOUNT "\":%d,\"" D_JSON_SAVECOUNT "\":%d,\"" D_JSON_SAVEADDRESS "\":\"%X\"}}"),
+      baudrate, Settings.mqtt_grptopic, Settings.ota_url, GetResetReason().c_str(), GetUptime().c_str(), GetDateAndTime(DT_RESTART).c_str(), Settings.sleep, Settings.cfg_holder, Settings.bootcount, Settings.save_flag, GetSettingsAddress());
     MqttPublishPrefixTopic_P(option, PSTR(D_CMND_STATUS "1"));
   }
 

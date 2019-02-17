@@ -93,6 +93,8 @@
 const char kCompareOperators[] PROGMEM = "=\0>\0<\0|\0==!=>=<=";
 
 #ifdef USE_EXPRESSION
+  #include <LinkedList.h>                 // Import LinkedList library
+
   const char kExpressionOperators[] PROGMEM = "+-*/%^";
   #define EXPRESSION_OPERATOR_ADD         0
   #define EXPRESSION_OPERATOR_SUBTRACT    1
@@ -103,7 +105,7 @@ const char kCompareOperators[] PROGMEM = "=\0>\0<\0|\0==!=>=<=";
 
   const uint8_t kExpressionOperatorsPriorities[] PROGMEM = {1, 1, 2, 2, 3, 4};
   #define MAX_EXPRESSION_OPERATOR_PRIORITY    4
-#endif   //USE_EXPRESSION
+#endif  // USE_EXPRESSION
 
 enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE };
 const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION "|" D_CMND_SUBSCRIBE "|" D_CMND_UNSUBSCRIBE ;
@@ -712,7 +714,7 @@ bool findNextVariableValue(char * &pVarname, double &value)
 bool findNextObjectValue(char * &pointer, double &value)
 {
   bool bSucceed = false;
-  while (*pointer) 
+  while (*pointer)
   {
     if (isspace(*pointer)) {      //Skip leading spaces
       pointer++;
@@ -774,7 +776,7 @@ bool findNextObjectValue(char * &pointer, double &value)
 bool findNextOperator(char * &pointer, int8_t &op)
 {
   bool bSucceed = false;
-  while (*pointer) 
+  while (*pointer)
   {
     if (isspace(*pointer)) {      //Skip leading spaces
       pointer++;
@@ -835,7 +837,7 @@ double calculateTwoValues(double v1, double v2, uint8_t op)
  *      expression  - The expression to be evaluated
  *      len         - Length of the expression
  * Return:
- *      double      - result. 
+ *      double      - result.
  *      0           - if the expression is invalid
  * An example:
  * MEM1 = 3, MEM2 = 6, VAR2 = 15, VAR10 = 80
@@ -874,15 +876,15 @@ double evaluateExpression(const char * expression, unsigned int len)
   }
   while (*scan_pointer)
   {
-    if (findNextOperator(scan_pointer, op) 
+    if (findNextOperator(scan_pointer, op)
         && *scan_pointer
-        && findNextObjectValue(scan_pointer, va)) 
+        && findNextObjectValue(scan_pointer, va))
     {
       operators.add(op);
       object_values.add(va);
     } else {
       //No operator followed or no more object after this operator, we done.
-      break;      
+      break;
     }
   }
 
