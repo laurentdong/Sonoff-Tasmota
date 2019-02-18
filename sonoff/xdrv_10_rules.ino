@@ -77,7 +77,6 @@
 #define D_CMND_CALC_RESOLUTION "CalcRes"
 #define D_CMND_SUBSCRIBE "Subscribe"
 #define D_CMND_UNSUBSCRIBE "UnSubscribe"
-#define D_CMND_IF "If"
 
 #define D_JSON_INITIATED "Initiated"
 
@@ -108,18 +107,8 @@ const char kCompareOperators[] PROGMEM = "=\0>\0<\0|\0==!=>=<=";
   #define MAX_EXPRESSION_OPERATOR_PRIORITY    4
 #endif  // USE_EXPRESSION
 
-#define LOGIC_OPERATOR_AND        1
-#define LOGIC_OPERATOR_OR         2
-
-#define IF_BLOCK_ANY            0
-#define IF_BLOCK_ELSEIF         1
-#define IF_BLOCK_ELSE           2
-#define IF_BLOCK_ENDIF          3
-
-enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD
-  , CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE, CMND_IF };
-const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD
-  "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION "|" D_CMND_SUBSCRIBE "|" D_CMND_UNSUBSCRIBE "|" D_CMND_IF ;
+enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE };
+const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION "|" D_CMND_SUBSCRIBE "|" D_CMND_UNSUBSCRIBE ;
 
 String rules_event_value;
 unsigned long rules_timer[MAX_RULE_TIMERS] = { 0 };
@@ -297,229 +286,6 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
   return match;
 }
 
-bool evaluateComparisonExpression(const char *expression, int len)
-{
-  char expbuf[len + 1];
-  memcpy(expbuf, expression, len);
-  expbuf[len] = '\0';
-  char * scan_pointer = expbuf;
-  while (*scan_pointer) {
-
-  }
-}
-
-bool findNextLogicObjectValue(char * &pointer, bool &value)
-{
-  bool bSucceed = false;
-  while (*pointer && isspace(*pointer)) {
-    //Skip leading spaces
-    pointer++;
-  }
-  char * expression_start = pointer;
-  while (*pointer) {
-    if (isalpha(*pointer)
-      && (strncasecmp_P(pointer, PSTR("AND "), 4) == 0
-       || strncasecmp_P(pointer, PSTR("OR "), 3) == 0))
-    {      //We have a logic operator, should stop
-      value = evaluateComparisonExpression(expression_start, pointer - expression_start);
-      bSucceed = true;
-      break;
-    } else if (*pointer == '(') {     //It is a sub expression bracketed with ()
-      char * closureBracket = findClosureBracket(pointer);        //Get the position of closure bracket ")"
-      if (closureBracket != NULL) {
-        value = evaluateLogicalExpression(pointer+1, closureBracket - pointer - 2);
-        pointer = closureBracket + 1;
-        bSucceed = true;
-      }
-      break;
-    }
-    pointer++;
-  }
-  if (!bSucceed && pointer > expression_start) {
-    //The whole buffer is an comparison expression
-    value = evaluateComparisonExpression(expression_start, pointer - expression_start);
-    succeed = true;
-  }
-  return bSucceed;
-}
-/********************************************************************************************/
-/*
- * Evaluate a logical expression
- * Logic expression is constructed with multiple comparison expressions and logical
- * operators between them. For example: Mem1==0 AND (time > sunrise + 60)
- * Input:
- *      pNumber     - A char pointer point to a digit started string (guaranteed)
- *      value       - Reference a double variable used to accept the result
- * Output:
- *      pNumber     - Pointer forward to next character after the number
- *      value       - double type, the result value
- * Return:
- *      true    - succeed
- *      false   - failed
- */
-
-bool evaluateLogicalExpression(const char * pLogicExpression, int len)
-{
-  bool bResult = false;
-  //Make a copy first
-  char expression[len + 1];
-  memcpy(expression, pLogicExpression, len);
-  expression[len] = '\0';
-
-  char * pointer = expression;
-  LinkedList<bool> values;
-  LinkedList<int8_t> logicOperators;
-  //Find first comparison expression
-  bool bValue;
-  if (findNextLogicObjectValue(pointer, bValue) {
-    values.add(bValue);
-  } else {
-    return false;
-  }
-  int8_t operator;
-  while (*pointer) {
-    if (findNextLogicOperator(pointer, operator)
-      && (*pointer) && findNextLogicObjectValue(pointer, bValue))
-    {
-      logicOperators.add(operator);
-      values.add(bValue);
-    } else {
-      break;
-    }
-  }
-  //Calculate all "AND" first
-  int index = 0;
-  while (index < operators.size()) {
-    if (operators.get(index) == LOGIC_OPERATOR_AND) {
-      values.set(index, values.get(index) && values.get(index+1));
-      values.remove(index + 1);
-      operators.remove(index);
-    } else {
-      index++;
-    }
-  }
-  //Then, calculate all "OR"
-  int index = 0;
-  while (index < operators.size()) {
-    if (operators.get(index) == LOGIC_OPERATOR_OR) {
-      values.set(index, values.get(index) || values.get(index+1));
-      values.remove(index + 1);
-      operators.remove(index);
-    } else {
-      index++;
-    }
-  }
-  return values.get(0);
-}
-
-void RulesProcessCommand((char *cmnd)
-{
-  //Make a copy of original commands
-  char commands[strlen(cmnd)+1];
-  strcpy(commands, cmnd);      //Already trim-ed
-
-  String sFinalCommands;
-
-  //Looking for if command
-  char * cmd = commands;
-  while (*cmd != NULL) {
-    //Skip all ";" between two commands
-    if (*cmd == ';') {
-      cmd++;
-      continue;
-    } else if (strncasecmp_P(cmd, PSTR("IF "), 3) == 0) {      //Process IF command block
-      //We are going to look for matched "ENDIF"
-      String s_block = findIfBlock(cmd, IF_BLOCK_ENDIF);
-
-      int start_pos = cmd - command;      //"IF" statement block start at position (relative to command start)
-      int cnt_nested_if = 1;
-      //First break into words delimited by space or ";"
-      char * word = strtok(cmd, " ;");
-      while (word != NULL) {
-        //if we find a new "IF" that means this is nested if block
-        if (strcasecmp_P(word, PSTR("IF")) == 0) {
-          cnt_nested_if++;
-        } else if (strcasecmp_P(word, PSTR("ENDIF")) == 0) {      //Find an "ENDIF"
-          cnt_nested_if--;
-          if (cnt_nested_if == 0) break;                    //This is the one matched
-        }
-        word = strtok(NULL, " ;");
-      }
-      if (word != NULL) {       //Found the ENDIF at word
-        cmd += word + 5 + 1;
-        //We have a whole IF statement now
-        int end_pos = word - command;
-        int len = end_pos - start_pos + 5;    //Include ENDIF
-        char * ifstatement[len + 1];
-        memcpy(ifstatement, cmnd + start_pos, len);
-        ifstatement[len] = '\0';
-        String sIfStat = ifstatement;
-        //Escapte from ";" to "\\^" and from "\\" to "\\\\".
-        //By remove all ";" in IF statement block, we can prevent backlog command cut the whole block as multiple commands
-        sIfStat.replace("\\", "\\\\");
-        sIfStat.replace(";", "\\^");
-        sFinalCommands.concat(sIfStat);
-        sFinalCommands.concat(";");
-      } else {    //Did not find the matched ENDIF, stop processing
-        break;
-      }
-    } else {
-      char *end_cmd = strchr(cmd, ';');
-      if (end_cmd != NULL) {
-        *end_cmd = '\0';      //Replace ";" with NULL as the string end
-        sFinalCommands.concat(cmd);
-        sFinalCommands.concat(";");      //Add a ";" and the end
-        cmd = end_cmd + 1;
-      } else {      //No more ";", we already reached the last command
-        sFinalCommands.concat(cmd);
-        break;
-      }
-    }
-  }
-  if (sFinalCommands.length() > 0 && !sFinalCommands.substring(0, 8).equalsIgnoreCase(F"BACKLOG ")) {
-    //If not start with BACKLOG, we are going to execute the first command immediately and insert others in backlog
-    int cmd_end = sFinalCommands.indexOf(';');
-    if (cmd_end > 0) {
-      String firstCmd = sFinalCommands.substring(0, cmd_end);
-      ExecuteCommand(firstCmd);
-      sFinalCommands = "BACKLOG " + sFinalCommands.substring(cmd_end+1);
-    }
-  }
-  if (sFinalCommands.length() > 0) {
-    char * run_cmnds[sFinalCommands.length() + 1];
-    strcpy(run_cmnds, sFinalCommands.c_str());
-    ExecuteCommand(run_cmds, SRC_RULE);
-  }
-}
-
-void ProcessIfStatement(const char* statements)
-{
-  String conditionExpression;
-  char *pos = statements;
-  while (true) {
-    //Search for the open bracket first
-    while (*pos && *pos != '(') {
-      pos++;
-    }
-    char * end_pos = findClosureBracket(pos);
-    if (evaluateLogicalExpression(pos + 1, end_pos - pos -2) == true) {
-      //Looking for matched "ELSEIF", "ELSE" or "ENDIF", then Execute this block
-      break;
-    } else {
-      uint8_t NEXT_BLOCK = getNextIfBlock(pos);
-      if (NEXT_BLOCK == IF_BLOCK_ELSEIF) {
-        continue;
-      } else if (NEXT_BLOCK == IF_BLOCK_ELSE) {
-        //Looking for matched "ENDIF" then execute this block
-        break;
-      } else if (NEXT_BLOCK == IF_BLOCK_ENDIF) {
-        break;
-      } else {
-        //Something wrong
-      }
-    }
-  }
-}
 /*******************************************************************************************/
 
 bool RuleSetProcess(uint8_t rule_set, String &event_saved)
@@ -599,11 +365,8 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
 
 //      snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, D_CMND_RULE, D_JSON_INITIATED);
 //      MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_RULE));
-#ifdef USE_EXPRESSION
-      RulesProcessCommand(command);
-#else
+
       ExecuteCommand(command, SRC_RULE);
-#endif
       serviced = true;
       if (stop_all_rules) { return serviced; }     // If BREAK was used, Stop execution of this rule set
     }
@@ -970,11 +733,29 @@ bool findNextObjectValue(char * &pointer, double &value)
       bSucceed = findNextVariableValue(pointer, value);
       break;
     } else if (*pointer == '(') {     //It is a sub expression bracketed with ()
-      char * closureBracket = findClosureBracket(pointer);        //Get the position of closure bracket ")"
-      if (closureBracket != NULL) {
-        value = evaluateExpression(pointer+1, closureBracket - pointer - 2);
-        pointer = closureBracket + 1;
-        succeed = true;
+      pointer++;
+      char * sub_exp_start = pointer; //Find out the sub expression between a pair of parenthesis. "()"
+      unsigned int sub_exp_len = 0;
+      //Look for the matched closure parenthesis.")"
+      bool bFindClosures = false;
+      uint8_t matchClosures = 1;
+      while (*pointer)
+      {
+        if (*pointer == ')') {
+          matchClosures--;
+          if (matchClosures == 0) {
+            sub_exp_len = pointer - sub_exp_start;
+            bFindClosures = true;
+            break;
+          }
+        } else if (*pointer == '(') {
+          matchClosures++;
+        }
+        pointer++;
+      }
+      if (bFindClosures) {
+        value = evaluateExpression(sub_exp_start, sub_exp_len);
+        bSucceed = true;
       }
       break;
     } else {          //No number, no variable, no expression, then invalid object.
@@ -984,35 +765,6 @@ bool findNextObjectValue(char * &pointer, double &value)
   return bSucceed;
 }
 
-//
-char * findClosureBracket(const char * start_pointer)
-{
-  char * pointer = start_pointer + 1;
-  char * sub_exp_start = pointer; //Find out the sub expression between a pair of parenthesis. "()"
-  unsigned int sub_exp_len = 0;
-  //Look for the matched closure parenthesis.")"
-  bool bFindClosures = false;
-  uint8_t matchClosures = 1;
-  while (*pointer)
-  {
-    if (*pointer == ')') {
-      matchClosures--;
-      if (matchClosures == 0) {
-        sub_exp_len = pointer - sub_exp_start;
-        bFindClosures = true;
-        break;
-      }
-    } else if (*pointer == '(') {
-      matchClosures++;
-    }
-    pointer++;
-  }
-  if (bFindClosures) {
-    return pointer;
-  } else {
-    return NULL;
-  }
-}
 /********************************************************************************************/
 /*
  * Find next operator in expression
@@ -1312,21 +1064,12 @@ bool RulesCommand(void)
         snprintf_P(stopic, sizeof(stopic), PSTR("%s/#"), XdrvMailbox.data); // domoticz topic
         MqttSubscribe(stopic);
   	}
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, XdrvMailbox.data);
   } else if (CMND_UNSUBSCRIBE == command_code) {			//MQTT Un-subscribe command. UnSubscribe <Topic>
   	if (XdrvMailbox.data_len > 0) {
         char stopic[TOPSZ];
         snprintf_P(stopic, sizeof(stopic), PSTR("%s/#"), XdrvMailbox.data); // domoticz topic
         MqttUnsubscribe(stopic);
   	}
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, XdrvMailbox.data);
-#ifdef USE_EXPRESSION
-  } else if (CMND_IF == command_code) {
-    if (XdrvMailbox.data_len > 0) {
-      ProcessIfStatement(XdrvMailbox.data);
-    }
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, XdrvMailbox.data);
-#endif
   }
   else serviced = false;  // Unknown command
 
