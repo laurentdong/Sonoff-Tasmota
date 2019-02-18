@@ -681,6 +681,12 @@ bool findNextVariableValue(char * &pVarname, double &value)
   } else if (sVarName.equals("UPTIME")) {
     value = GetMinutesUptime();
     succeed = true;
+  } else if (sVarName.equals("UTCTIME")) {
+    value = UtcTime();
+    succeed = true;
+  } else if (sVarName.equals("LOCALTIME")) {
+    value = LocalTime();
+    succeed = true;
 #if defined(USE_TIMERS) && defined(USE_SUNRISE)
   } else if (sVarName.equals("SUNRISE")) {
     value = GetSunMinutes(0);
