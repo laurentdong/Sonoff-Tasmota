@@ -105,6 +105,13 @@ const char kCompareOperators[] PROGMEM = "=\0>\0<\0|\0==!=>=<=";
 
   const uint8_t kExpressionOperatorsPriorities[] PROGMEM = {1, 1, 2, 2, 3, 4};
   #define MAX_EXPRESSION_OPERATOR_PRIORITY    4
+
+  typedef struct {
+    String Event;
+    String Topic;
+    String Key;
+  } MQTT_Subscription;
+  LinkedList<MQTT_Subscription> subscriptions;
 #endif  // USE_EXPRESSION
 
 enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE };
@@ -569,26 +576,50 @@ void RulesEverySecond(void)
 
 bool RulesMqttData(void)
 {
+  bool serviced = false;
   char json_event[120];
-  if (XdrvMailbox.data_len < 10) {
-    return true;
+  if (XdrvMailbox.data_len < 20) {
+    return false;
   }
+  snprintf_P(log_data, sizeof(log_data), PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
+  AddLog(LOG_LEVEL_DEBUG);
   StaticJsonBuffer<400> jsonBuf;
   JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
   if (!jsonData.success()) {
-    return true;
+    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Parse Json data failed."));
+    AddLog(LOG_LEVEL_DEBUG);
+    return false;
   }
-  if (!jsonData["value"].success()) {
-    return true;
+  //Looking for matched topic
+  MQTT_Subscription event_item;
+  bool bMatched = false;
+  const char * value;
+  for (int index = 0; index < subscriptions.size(); index++) {
+    event_item = subscriptions.get(index);
+    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: index:%d, event:%s, topic:%s, key:%s"), index, event_item.Event.c_str(), event_item.Topic.c_str(), event_item.Key.c_str());
+    AddLog(LOG_LEVEL_DEBUG);
+    if (strncmp(XdrvMailbox.topic, event_item.Topic.c_str(), event_item.Topic.length() - 2) == 0) {
+      //This topic is subscribed by us, so served
+      serviced = true;
+      if (event_item.Key.length() == 0) {
+        value = XdrvMailbox.data;
+        bMatched = true;
+        break;
+      } else if (jsonData[event_item.Key.c_str()].success()) {
+        value = jsonData[event_item.Key.c_str()];
+        bMatched = true;
+        break;
+      }
+    }
   }
-  const char * value = jsonData["value"];
-  snprintf_P(json_event, sizeof(json_event), PSTR("{\"Topic\":{\"%s\":\"%s\"}}"), XdrvMailbox.topic, value);
-  RulesProcessEvent(json_event);
-
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DOMOTICZ D_RECEIVED_TOPIC " %s, " D_DATA " %s"), XdrvMailbox.topic, XdrvMailbox.data);
-  AddLog(LOG_LEVEL_DEBUG_MORE);
-
-  return true;
+  if (bMatched) {
+    snprintf_P(json_event, sizeof(json_event), PSTR("{\"Mqtt\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value);
+    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
+    AddLog(LOG_LEVEL_DEBUG);
+    RulesProcessEvent(json_event);
+    serviced = true;
+  }
+  return serviced;
 }
 
 void RulesSetPower(void)
@@ -1054,16 +1085,65 @@ bool RulesCommand(void)
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
   } else if (CMND_SUBSCRIBE == command_code) {			//MQTT Subscribe command. Subscribe <Topic>
   	if (XdrvMailbox.data_len > 0) {
-        char stopic[TOPSZ];
-        snprintf_P(stopic, sizeof(stopic), PSTR("%s/#"), XdrvMailbox.data); // domoticz topic
+      char stopic[TOPSZ];
+      char parameters[XdrvMailbox.data_len+1];
+      strcpy(parameters, XdrvMailbox.data);
+
+      String event_name = strtok(parameters, ",");
+      String topic = strtok(NULL, ",");
+      String key = strtok(NULL, ",");
+      event_name.toUpperCase();
+      event_name.trim();
+      topic.trim();
+      key.trim();
+      if (event_name.length() > 0 && topic.length() > 0 && key.length() > 0) {
+        bool bExist = false;
+        int index;
+        for (index=0; index<subscriptions.size(); index++) {
+          if (subscriptions.get(index).Event.equals(event_name)) {
+            bExist = true;
+            break;
+          }
+        }
+        if (bExist) {
+          snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
+          MqttUnsubscribe(stopic);
+          subscriptions.remove(index);
+        }
+        if (!topic.endsWith("/#"))
+          topic.concat("/#");
+        MQTT_Subscription subscription_item;
+        subscription_item.Event = event_name;
+        subscription_item.Topic = topic;
+        subscription_item.Key = key;
+        subscriptions.add(subscription_item);
+
+        snprintf(stopic, sizeof(stopic), topic.c_str());
         MqttSubscribe(stopic);
+      }
   	}
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, XdrvMailbox.data);
   } else if (CMND_UNSUBSCRIBE == command_code) {			//MQTT Un-subscribe command. UnSubscribe <Topic>
   	if (XdrvMailbox.data_len > 0) {
-        char stopic[TOPSZ];
-        snprintf_P(stopic, sizeof(stopic), PSTR("%s/#"), XdrvMailbox.data); // domoticz topic
+      char stopic[TOPSZ];
+      String event_name = XdrvMailbox.data;
+      event_name.toUpperCase();
+      event_name.trim();
+      bool bFound = false;
+      int index;
+      for (index = 0; index < subscriptions.size(); index++) {
+        if (subscriptions.get(index).Event.equals(event_name)) {
+          bFound = true;
+          break;
+        }
+      }
+      if (bFound) {
+        snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str()); // domoticz topic
         MqttUnsubscribe(stopic);
+        subscriptions.remove(index);
+      }
   	}
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, XdrvMailbox.data);
   }
   else serviced = false;  // Unknown command
 
