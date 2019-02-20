@@ -585,15 +585,16 @@ bool RulesMqttData(void)
   AddLog(LOG_LEVEL_DEBUG);
   StaticJsonBuffer<400> jsonBuf;
   JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
+  bool isJsonData = true;
   if (!jsonData.success()) {
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Parse Json data failed."));
     AddLog(LOG_LEVEL_DEBUG);
-    return false;
+    isJsonData = false;
   }
   //Looking for matched topic
   MQTT_Subscription event_item;
   bool bMatched = false;
-  const char * value;
+  String value;
   for (int index = 0; index < subscriptions.size(); index++) {
     event_item = subscriptions.get(index);
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: index:%d, event:%s, topic:%s, key:%s"), index, event_item.Event.c_str(), event_item.Topic.c_str(), event_item.Key.c_str());
@@ -605,7 +606,7 @@ bool RulesMqttData(void)
         value = XdrvMailbox.data;
         bMatched = true;
         break;
-      } else if (jsonData[event_item.Key.c_str()].success()) {
+      } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
         value = jsonData[event_item.Key.c_str()];
         bMatched = true;
         break;
@@ -613,6 +614,7 @@ bool RulesMqttData(void)
     }
   }
   if (bMatched) {
+    value.trim();
     snprintf_P(json_event, sizeof(json_event), PSTR("{\"Mqtt\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value);
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
     AddLog(LOG_LEVEL_DEBUG);
