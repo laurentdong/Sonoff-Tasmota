@@ -644,6 +644,11 @@ void RulesTeleperiod(void)
  * Subscribe a MQTT topic (with or without key) and assign an event name to it
  * Command Subscribe format:
  *      Subscribe <event_name>, <topic> [, <key>]
+ *        This command will subscribe a <topic> and give it an event name <event_name>.
+ *        The optional parameter <key> is for parse the specified key/value from JSON
+ *        message sent by MQTT server.
+ *      Subscribe
+ *        Subscribe command without any parameter will list all topics currently subscribed.
  * Input:
  *      data      - A char buffer with all the parameters
  *      data_len  - Length of the parameters
@@ -724,18 +729,22 @@ String RulesUnsubscribe(const char * data, int data_len)
   char stopic[TOPSZ];
   if (data_len > 0) {
     String event_name = data;
-    event_name.toUpperCase();
     event_name.trim();
+    String topic = event_name;
+    event_name.toUpperCase();
     bool bFound = false;
     int index;
     for (index = 0; index < subscriptions.size(); index++) {
       if (subscriptions.get(index).Event.equals(event_name)) {
         bFound = true;
         break;
+      } else if (subscriptions.get(index).Topic.startsWith(topic)) {
+        bFound = true;
+        break;
       }
     }
     if (bFound) {
-      snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str()); // domoticz topic
+      snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
       MqttUnsubscribe(stopic);
       events = subscriptions.get(index).Event + "," + subscriptions.get(index).Topic + "," + subscriptions.get(index).Key;
       subscriptions.remove(index);
