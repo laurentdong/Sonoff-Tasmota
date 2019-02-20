@@ -574,6 +574,7 @@ void RulesEverySecond(void)
   }
 }
 
+#ifdef USE_EXPRESSION
 bool RulesMqttData(void)
 {
   bool serviced = false;
@@ -607,7 +608,7 @@ bool RulesMqttData(void)
         bMatched = true;
         break;
       } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
-        value = jsonData[event_item.Key.c_str()];
+        value = (const char *)jsonData[event_item.Key.c_str()];
         bMatched = true;
         break;
       }
@@ -615,7 +616,7 @@ bool RulesMqttData(void)
   }
   if (bMatched) {
     value.trim();
-    snprintf_P(json_event, sizeof(json_event), PSTR("{\"Mqtt\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value);
+    snprintf_P(json_event, sizeof(json_event), PSTR("{\"Mqtt\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
     AddLog(LOG_LEVEL_DEBUG);
     RulesProcessEvent(json_event);
@@ -623,6 +624,7 @@ bool RulesMqttData(void)
   }
   return serviced;
 }
+#endif      //USE_EXPRESSION
 
 void RulesSetPower(void)
 {
@@ -637,6 +639,119 @@ void RulesTeleperiod(void)
 }
 
 #ifdef USE_EXPRESSION
+/********************************************************************************************/
+/*
+ * Subscribe a MQTT topic (with or without key) and assign an event name to it
+ * Command Subscribe format:
+ *      Subscribe <event_name>, <topic> [, <key>]
+ * Input:
+ *      data      - A char buffer with all the parameters
+ *      data_len  - Length of the parameters
+ * Return:
+ *      A string include subscribed event, topic and key.
+ */
+String RulesSubscribe(const char *data, int data_len)
+{
+  String events;
+  if (data_len > 0) {
+    char stopic[TOPSZ];
+    char parameters[data_len+1];
+    strcpy(parameters, data);
+
+    String event_name = strtok(parameters, ",");
+    String topic = strtok(NULL, ",");
+    String key = strtok(NULL, ",");
+    event_name.toUpperCase();
+    event_name.trim();
+    topic.trim();
+    key.trim();
+    if (event_name.length() > 0 && topic.length() > 0) {
+      bool bExist = false;
+      int index;
+      for (index=0; index<subscriptions.size(); index++) {
+        if (subscriptions.get(index).Event.equals(event_name)) {
+          bExist = true;
+          break;
+        }
+      }
+      if (bExist) {
+        snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
+        MqttUnsubscribe(stopic);
+        subscriptions.remove(index);
+      }
+      if (!topic.endsWith("/#")) {
+        if (topic.endsWith("/")) {
+          topic.concat("#");
+        } else {
+          topic.concat("/#");
+        }
+      }
+      MQTT_Subscription subscription_item;
+      subscription_item.Event = event_name;
+      subscription_item.Topic = topic;
+      subscription_item.Key = key;
+      subscriptions.add(subscription_item);
+
+      snprintf(stopic, sizeof(stopic), topic.c_str());
+      MqttSubscribe(stopic);
+      events.concat(event_name + "," + topic + "," + key);
+    } else {
+      events = "Error: Need more parameters.";
+    }
+  } else {
+    //If did not specify the event name, list all subscribed event
+    for (int index=0; index<subscriptions.size(); index++) {
+      events.concat(subscriptions.get(index).Event + "," + subscriptions.get(index).Topic + "," + subscriptions.get(index).Key + "; ");
+    }
+  }
+  return events;
+}
+
+/********************************************************************************************/
+/*
+ * Unsubscribe specified MQTT event / topic
+ * Command Unsubscribe format:
+ *      Unsubscribe {<event_name> | <topic>}
+ * Input:
+ *      data      - A char buffer with all the parameters
+ *      data_len  - Length of the parameters
+ * Return:
+ *      list all the events unsubscribed.
+ */
+String RulesUnsubscribe(const char * data, int data_len)
+{
+  String events;
+  char stopic[TOPSZ];
+  if (data_len > 0) {
+    String event_name = data;
+    event_name.toUpperCase();
+    event_name.trim();
+    bool bFound = false;
+    int index;
+    for (index = 0; index < subscriptions.size(); index++) {
+      if (subscriptions.get(index).Event.equals(event_name)) {
+        bFound = true;
+        break;
+      }
+    }
+    if (bFound) {
+      snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str()); // domoticz topic
+      MqttUnsubscribe(stopic);
+      events = subscriptions.get(index).Event + "," + subscriptions.get(index).Topic + "," + subscriptions.get(index).Key;
+      subscriptions.remove(index);
+    }
+  } else {
+    //If did not specify the event name, unsubscribe all event
+    while (subscriptions.size() > 0) {
+      events.concat(subscriptions.get(0).Event + "; ");
+      snprintf(stopic, sizeof(stopic), subscriptions.get(0).Topic.c_str()); // domoticz topic
+      MqttUnsubscribe(stopic);
+      subscriptions.remove(0);
+    }
+  }
+  return events;
+}
+
 /********************************************************************************************/
 /*
  * Parse a number value
@@ -1085,91 +1200,14 @@ bool RulesCommand(void)
       }
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
+#ifdef USE_EXPRESSION
   } else if (CMND_SUBSCRIBE == command_code) {			//MQTT Subscribe command. Subscribe <Event>, <Topic> [, <Key>]
-    String events;
-  	if (XdrvMailbox.data_len > 0) {
-      char stopic[TOPSZ];
-      char parameters[XdrvMailbox.data_len+1];
-      strcpy(parameters, XdrvMailbox.data);
-
-      String event_name = strtok(parameters, ",");
-      String topic = strtok(NULL, ",");
-      String key = strtok(NULL, ",");
-      event_name.toUpperCase();
-      event_name.trim();
-      topic.trim();
-      key.trim();
-      if (event_name.length() > 0 && topic.length() > 0) {
-        bool bExist = false;
-        int index;
-        for (index=0; index<subscriptions.size(); index++) {
-          if (subscriptions.get(index).Event.equals(event_name)) {
-            bExist = true;
-            break;
-          }
-        }
-        if (bExist) {
-          snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
-          MqttUnsubscribe(stopic);
-          subscriptions.remove(index);
-        }
-        if (!topic.endsWith("/#")) {
-          if (topic.endsWith("/")) {
-            topic.concat("#");
-          } else {
-            topic.concat("/#");
-          }
-        }
-        MQTT_Subscription subscription_item;
-        subscription_item.Event = event_name;
-        subscription_item.Topic = topic;
-        subscription_item.Key = key;
-        subscriptions.add(subscription_item);
-
-        snprintf(stopic, sizeof(stopic), topic.c_str());
-        MqttSubscribe(stopic);
-        events.concat(event_name + "," + topic + "," + key);
-      } else {
-        events = "Error: Need more parameters.";
-      }
-  	} else {
-      //If did not specify the event name, list all subscribed event
-      for (int index=0; index<subscriptions.size(); index++) {
-        events.concat(subscriptions.get(index).Event + "," + subscriptions.get(index).Topic + "," + subscriptions.get(index).Key + "; ");
-      }
-    }
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, events.c_str());
+    String result = RulesSubscribe(XdrvMailbox.data, XdrvMailbox.data_len);
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, result.c_str());
   } else if (CMND_UNSUBSCRIBE == command_code) {			//MQTT Un-subscribe command. UnSubscribe <Event>
-    String events;
-    char stopic[TOPSZ];
-  	if (XdrvMailbox.data_len > 0) {
-      String event_name = XdrvMailbox.data;
-      event_name.toUpperCase();
-      event_name.trim();
-      bool bFound = false;
-      int index;
-      for (index = 0; index < subscriptions.size(); index++) {
-        if (subscriptions.get(index).Event.equals(event_name)) {
-          bFound = true;
-          break;
-        }
-      }
-      if (bFound) {
-        snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str()); // domoticz topic
-        MqttUnsubscribe(stopic);
-        events = subscriptions.get(index).Event + "," + subscriptions.get(index).Topic + "," + subscriptions.get(index).Key;
-        subscriptions.remove(index);
-      }
-  	} else {
-      //If did not specify the event name, unsubscribe all event
-      while (subscriptions.size() > 0) {
-        events.concat(subscriptions.get(0).Event + "; ");
-        snprintf(stopic, sizeof(stopic), subscriptions.get(0).Topic.c_str()); // domoticz topic
-        MqttUnsubscribe(stopic);
-        subscriptions.remove(0);
-      }
-    }
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, events.c_str());
+    String result = RulesUnsubscribe(XdrvMailbox.data, XdrvMailbox.data_len);
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, result.c_str());
+#endif        //USE_EXPRESSION
   }
   else serviced = false;  // Unknown command
 
@@ -1211,9 +1249,11 @@ bool Xdrv10(uint8_t function)
     case FUNC_RULES_PROCESS:
       result = RulesProcess();
       break;
+#ifdef USE_EXPRESSION
     case FUNC_MQTT_DATA:
       result = RulesMqttData();
       break;
+#endif    //USE_EXPRESSION
   }
   return result;
 }
