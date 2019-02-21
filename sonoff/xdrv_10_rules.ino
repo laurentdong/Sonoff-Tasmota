@@ -584,33 +584,35 @@ bool RulesMqttData(void)
   }
   snprintf_P(log_data, sizeof(log_data), PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
   AddLog(LOG_LEVEL_DEBUG);
-  StaticJsonBuffer<1024> jsonBuf;
-  JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
-  bool isJsonData = true;
-  if (!jsonData.success()) {
-    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Parse Json data failed."));
-    AddLog(LOG_LEVEL_DEBUG);
-    isJsonData = false;
-  }
-  //Looking for matched topic
   MQTT_Subscription event_item;
   bool bMatched = false;
   String value;
-  for (int index = 0; index < subscriptions.size(); index++) {
-    event_item = subscriptions.get(index);
-    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: index:%d, event:%s, topic:%s, key:%s"), index, event_item.Event.c_str(), event_item.Topic.c_str(), event_item.Key.c_str());
-    AddLog(LOG_LEVEL_DEBUG);
-    if (strncmp(XdrvMailbox.topic, event_item.Topic.c_str(), event_item.Topic.length() - 2) == 0) {
-      //This topic is subscribed by us, so serve it
-      serviced = true;
-      if (event_item.Key.length() == 0) {
-        value = XdrvMailbox.data;
-        bMatched = true;
-        break;
-      } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
-        value = jsonData[event_item.Key.c_str()];
-        bMatched = true;
-        break;
+  {
+    StaticJsonBuffer<1024> jsonBuf;
+    JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
+    bool isJsonData = true;
+    if (!jsonData.success()) {
+      snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Parse Json data failed."));
+      AddLog(LOG_LEVEL_DEBUG);
+      isJsonData = false;
+    }
+    //Looking for matched topic
+    for (int index = 0; index < subscriptions.size(); index++) {
+      event_item = subscriptions.get(index);
+      snprintf_P(log_data, sizeof(log_data), PSTR("RUL: index:%d, event:%s, topic:%s, key:%s"), index, event_item.Event.c_str(), event_item.Topic.c_str(), event_item.Key.c_str());
+      AddLog(LOG_LEVEL_DEBUG);
+      if (strncmp(XdrvMailbox.topic, event_item.Topic.c_str(), event_item.Topic.length() - 2) == 0) {
+        //This topic is subscribed by us, so serve it
+        serviced = true;
+        if (event_item.Key.length() == 0) {
+          value = XdrvMailbox.data;
+          bMatched = true;
+          break;
+        } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
+          value = jsonData[event_item.Key.c_str()];
+          bMatched = true;
+          break;
+        }
       }
     }
   }
