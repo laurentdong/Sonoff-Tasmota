@@ -608,7 +608,7 @@ bool RulesMqttData(void)
         bMatched = true;
         break;
       } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
-        value = (const char *)jsonData[event_item.Key.c_str()];
+        value = jsonData[event_item.Key.c_str()];
         bMatched = true;
         break;
       }
