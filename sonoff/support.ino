@@ -305,7 +305,7 @@ char* UpperCase_P(char* dest, const char* source)
   return dest;
 }
 
-char* Trim(char* p)
+char* Trim(const char* p)
 {
   while ((*p != '\0') && isblank(*p)) { p++; }  // Trim leading spaces
   char* q = p + strlen(p) -1;

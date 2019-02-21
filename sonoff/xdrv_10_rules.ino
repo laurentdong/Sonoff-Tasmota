@@ -579,12 +579,12 @@ bool RulesMqttData(void)
 {
   bool serviced = false;
   char json_event[120];
-  if (XdrvMailbox.data_len < 20) {
+  if (XdrvMailbox.data_len < 1 || XdrvMailbox.data_len > 512) {
     return false;
   }
   snprintf_P(log_data, sizeof(log_data), PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
   AddLog(LOG_LEVEL_DEBUG);
-  StaticJsonBuffer<400> jsonBuf;
+  StaticJsonBuffer<1024> jsonBuf;
   JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
   bool isJsonData = true;
   if (!jsonData.success()) {
@@ -601,7 +601,7 @@ bool RulesMqttData(void)
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: index:%d, event:%s, topic:%s, key:%s"), index, event_item.Event.c_str(), event_item.Topic.c_str(), event_item.Key.c_str());
     AddLog(LOG_LEVEL_DEBUG);
     if (strncmp(XdrvMailbox.topic, event_item.Topic.c_str(), event_item.Topic.length() - 2) == 0) {
-      //This topic is subscribed by us, so served
+      //This topic is subscribed by us, so serve it
       serviced = true;
       if (event_item.Key.length() == 0) {
         value = XdrvMailbox.data;
@@ -616,11 +616,10 @@ bool RulesMqttData(void)
   }
   if (bMatched) {
     value.trim();
-    snprintf_P(json_event, sizeof(json_event), PSTR("{\"Mqtt\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
+    snprintf_P(json_event, sizeof(json_event), PSTR("{\"MQTT\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
     AddLog(LOG_LEVEL_DEBUG);
     RulesProcessEvent(json_event);
-    serviced = true;
   }
   return serviced;
 }
@@ -659,31 +658,35 @@ String RulesSubscribe(const char *data, int data_len)
 {
   String events;
   if (data_len > 0) {
-    char stopic[TOPSZ];
     char parameters[data_len+1];
     strcpy(parameters, data);
+    String event_name, topic, key;
 
-    String event_name = strtok(parameters, ",");
-    String topic = strtok(NULL, ",");
-    String key = strtok(NULL, ",");
+    char * pos = strtok(parameters, ",");
+    if (pos) {
+      event_name = Trim(pos);
+      pos = strtok(NULL, ",");
+      if (pos) {
+        topic = Trim(pos);
+        pos = strtok(NULL, ",");
+        if (pos) {
+          key = Trim(pos);
+        }
+      }
+    }
     event_name.toUpperCase();
-    event_name.trim();
-    topic.trim();
-    key.trim();
-    if (event_name.length() > 0 && topic.length() > 0) {
-      bool bExist = false;
-      int index;
-      for (index=0; index<subscriptions.size(); index++) {
+    if (event_name && topic) {
+      //Search in all subscriptions
+      for (int index=0; index<subscriptions.size(); index++) {
         if (subscriptions.get(index).Event.equals(event_name)) {
-          bExist = true;
+          //If find exists one, remove it.
+          snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
+          MqttUnsubscribe(stopic);
+          subscriptions.remove(index);
           break;
         }
       }
-      if (bExist) {
-        snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
-        MqttUnsubscribe(stopic);
-        subscriptions.remove(index);
-      }
+      //Add "/#" to the topic
       if (!topic.endsWith("/#")) {
         if (topic.endsWith("/")) {
           topic.concat("#");
@@ -691,14 +694,14 @@ String RulesSubscribe(const char *data, int data_len)
           topic.concat("/#");
         }
       }
+      //MQTT Subscribe
       MQTT_Subscription subscription_item;
       subscription_item.Event = event_name;
       subscription_item.Topic = topic;
       subscription_item.Key = key;
       subscriptions.add(subscription_item);
 
-      snprintf(stopic, sizeof(stopic), topic.c_str());
-      MqttSubscribe(stopic);
+      MqttSubscribe(topic.c_str());
       events.concat(event_name + "," + topic + "," + key);
     } else {
       events = "Error: Need more parameters.";
