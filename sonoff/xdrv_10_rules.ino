@@ -609,12 +609,15 @@ bool RulesMqttData(void)
           break;
         }
       }
-      char json_event[120];
       value.trim();
+      /*
+      char json_event[120];
       snprintf_P(json_event, sizeof(json_event), PSTR("{\"MQTT\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
       snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
       AddLog(LOG_LEVEL_DEBUG);
       RulesProcessEvent(json_event);
+      */
+      snprintf_P(event_data, sizeof(event_data), PSTR("%s=%s"), event_item.Event.c_str(), value.c_str());
     }
   }
   return serviced;
