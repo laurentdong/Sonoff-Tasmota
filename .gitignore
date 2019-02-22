@@ -17,3 +17,6 @@ build
 .vscode/launch.json
 *.bak
 *.bin
+*.eep
+*.elf
+*.hex
