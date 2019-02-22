@@ -578,50 +578,44 @@ void RulesEverySecond(void)
 bool RulesMqttData(void)
 {
   bool serviced = false;
-  if (XdrvMailbox.data_len < 1 || XdrvMailbox.data_len > 512) {
+  if (XdrvMailbox.data_len < 1 || XdrvMailbox.data_len > 128) {
     return false;
   }
-  snprintf_P(log_data, sizeof(log_data), PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
-  AddLog(LOG_LEVEL_DEBUG);
+  String sTopic = XdrvMailbox.topic;
+  String sData = XdrvMailbox.data;
+  //snprintf_P(log_data, sizeof(log_data), PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
+  //AddLog(LOG_LEVEL_DEBUG);
   MQTT_Subscription event_item;
-  bool bMatched = false;
-  String value;
-  {
-    StaticJsonBuffer<1024> jsonBuf;
-    JsonObject& jsonData = jsonBuf.parseObject(XdrvMailbox.data);
-    bool isJsonData = true;
-    if (!jsonData.success()) {
-      snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Parse Json data failed."));
-      AddLog(LOG_LEVEL_DEBUG);
-      isJsonData = false;
-    }
-    //Looking for matched topic
-    for (int index = 0; index < subscriptions.size(); index++) {
-      event_item = subscriptions.get(index);
-      snprintf_P(log_data, sizeof(log_data), PSTR("RUL: index:%d, event:%s, topic:%s, key:%s"), index, event_item.Event.c_str(), event_item.Topic.c_str(), event_item.Key.c_str());
-      AddLog(LOG_LEVEL_DEBUG);
-      if (strncmp(XdrvMailbox.topic, event_item.Topic.c_str(), event_item.Topic.length() - 2) == 0) {
-        //This topic is subscribed by us, so serve it
-        serviced = true;
-        if (event_item.Key.length() == 0) {
-          value = XdrvMailbox.data;
-          bMatched = true;
-          break;
-        } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
+  String item_topic;
+  //Looking for matched topic
+  for (int index = 0; index < subscriptions.size(); index++) {
+    event_item = subscriptions.get(index);
+    item_topic = event_item.Topic.substring(0, event_item.Topic.length() - 2);
+
+    //snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Match topic %s with subscriptions %s."), sTopic.c_str(), item_topic.c_str());
+    //AddLog(LOG_LEVEL_DEBUG);
+    if (sTopic.startsWith(item_topic)) {
+      //This topic is subscribed by us, so serve it
+      serviced = true;
+      String value;
+      if (event_item.Key.length() == 0) {
+        value = sData;
+      } else {
+        StaticJsonBuffer<400> jsonBuf;
+        JsonObject& jsonData = jsonBuf.parseObject(sData);
+        if (jsonData.success() && jsonData[event_item.Key.c_str()].success()) {
           value = (const char *)jsonData[event_item.Key.c_str()];
-          bMatched = true;
+        } else {
           break;
         }
       }
+      char json_event[120];
+      value.trim();
+      snprintf_P(json_event, sizeof(json_event), PSTR("{\"MQTT\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
+      snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
+      AddLog(LOG_LEVEL_DEBUG);
+      RulesProcessEvent(json_event);
     }
-  }
-  if (bMatched) {
-    char json_event[256];
-    value.trim();
-    snprintf_P(json_event, sizeof(json_event), PSTR("{\"MQTT\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
-    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
-    AddLog(LOG_LEVEL_DEBUG);
-    RulesProcessEvent(json_event);
   }
   return serviced;
 }
@@ -661,7 +655,8 @@ String RulesSubscribe(const char *data, int data_len)
   String events;
   if (data_len > 0) {
     char parameters[data_len+1];
-    strcpy(parameters, data);
+    memcpy(parameters, data, data_len);
+    parameters[data_len] = '\0';
     String event_name, topic, key;
 
     char * pos = strtok(parameters, ",");
@@ -676,10 +671,12 @@ String RulesSubscribe(const char *data, int data_len)
         }
       }
     }
+    snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Subscribe command with parameters: %s, %s, %s."), event_name.c_str(), topic.c_str(), key.c_str());
+    AddLog(LOG_LEVEL_DEBUG);
     event_name.toUpperCase();
-    if (event_name && topic) {
-      //Search in all subscriptions
-      for (int index=0; index<subscriptions.size(); index++) {
+    if (event_name.length() > 0 && topic.length() > 0) {
+      //Search all subscriptions
+      for (int index=0; index < subscriptions.size(); index++) {
         if (subscriptions.get(index).Event.equals(event_name)) {
           //If find exists one, remove it.
           char stopic[TOPSZ];
@@ -697,6 +694,8 @@ String RulesSubscribe(const char *data, int data_len)
           topic.concat("/#");
         }
       }
+      snprintf_P(log_data, sizeof(log_data), PSTR("RUL: New topic: %s."), topic.c_str());
+      AddLog(LOG_LEVEL_DEBUG);
       //MQTT Subscribe
       MQTT_Subscription subscription_item;
       subscription_item.Event = event_name;
@@ -711,7 +710,7 @@ String RulesSubscribe(const char *data, int data_len)
     }
   } else {
     //If did not specify the event name, list all subscribed event
-    for (int index=0; index<subscriptions.size(); index++) {
+    for (int index=0; index < subscriptions.size(); index++) {
       events.concat(subscriptions.get(index).Event + "," + subscriptions.get(index).Topic + "," + subscriptions.get(index).Key + "; ");
     }
   }
