@@ -578,7 +578,6 @@ void RulesEverySecond(void)
 bool RulesMqttData(void)
 {
   bool serviced = false;
-  char json_event[120];
   if (XdrvMailbox.data_len < 1 || XdrvMailbox.data_len > 512) {
     return false;
   }
@@ -609,7 +608,7 @@ bool RulesMqttData(void)
           bMatched = true;
           break;
         } else if (isJsonData && jsonData[event_item.Key.c_str()].success()) {
-          value = jsonData[event_item.Key.c_str()];
+          value = (const char *)jsonData[event_item.Key.c_str()];
           bMatched = true;
           break;
         }
@@ -617,6 +616,7 @@ bool RulesMqttData(void)
     }
   }
   if (bMatched) {
+    char json_event[256];
     value.trim();
     snprintf_P(json_event, sizeof(json_event), PSTR("{\"MQTT\":{\"%s\":\"%s\"}}"), event_item.Event.c_str(), value.c_str());
     snprintf_P(log_data, sizeof(log_data), PSTR("RUL: Event %s"), json_event);
@@ -682,6 +682,7 @@ String RulesSubscribe(const char *data, int data_len)
       for (int index=0; index<subscriptions.size(); index++) {
         if (subscriptions.get(index).Event.equals(event_name)) {
           //If find exists one, remove it.
+          char stopic[TOPSZ];
           snprintf(stopic, sizeof(stopic), subscriptions.get(index).Topic.c_str());
           MqttUnsubscribe(stopic);
           subscriptions.remove(index);
