@@ -276,7 +276,7 @@ void MqttSubscribe(const char *topic)
 
 void MqttUnsubscribe(const char *topic)
 {
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MQTT D_SUBSCRIBE_TO " %s"), topic);
+  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MQTT D_UNSUBSCRIBE_FROM " %s"), topic);
   AddLog(LOG_LEVEL_DEBUG);
   MqttUnsubscribeLib(topic);
 }
