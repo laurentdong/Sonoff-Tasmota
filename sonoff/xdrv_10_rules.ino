@@ -132,7 +132,14 @@ uint16_t rules_last_minute = 60;
 uint8_t rules_trigger_count[MAX_RULE_SETS] = { 0 };
 uint8_t rules_teleperiod = 0;
 
-char event_data[100];
+//#define EVENT_QUEUE
+#ifdef EVENT_QUEUE
+  #include <LinkedList.h>                 // Import LinkedList library
+  LinkedList<String> event_queue;
+  bool event_queue_mutex = false;
+#else
+  char event_data[100];
+#endif
 char vars[MAX_RULE_VARS][33] = { 0 };
 #if (MAX_RULE_VARS>16)
 #error MAX_RULE_VARS is bigger than 16
@@ -471,6 +478,28 @@ void RulesEvery50ms(void)
       RulesProcessEvent(json_event);
       rules_old_dimm = Settings.light_dimmer;
     }
+#ifdef EVENT_QUEUE
+    else if (event_queue.size() > 0 && !event_queue_mutex) {
+      event_queue_mutex = true;
+      String event;
+      if (event_queue.size() > 0) {
+        event = event_queue.remove(0);
+      }
+      event_queue_mutex = false;
+      String parameter;
+      int split;
+      if ((split = event.lastIndexOf('=')) > 0) {
+        parameter = event.substring(split + 1);
+        event = event.substring(0, split);
+        parameter.trim();
+      }
+      event.trim();
+      if (event.length() > 0) {
+        snprintf_P(json_event, sizeof(json_event), PSTR("{\"Event\":{\"%s\":\"%s\"}}"), event.c_str(), parameter.c_str());
+        RulesProcessEvent(json_event);
+      }
+    }
+#else
     else if (event_data[0]) {
       char *event;
       char *parameter;
@@ -489,6 +518,7 @@ void RulesEvery50ms(void)
         event_data[0] ='\0';
       }
     }
+#endif
     else if (vars_event) {
       for (uint8_t i = 0; i < MAX_RULE_VARS-1; i++) {
         if (bitRead(vars_event, i)) {
@@ -588,7 +618,18 @@ void RulesTeleperiod(void)
   RulesProcess();
   rules_teleperiod = 0;
 }
-
+#ifdef EVENT_QUEUE
+void addToEventQueue(String event)
+{
+  while (event_queue_mutex) {
+    delay(0);
+  }
+  event_queue_mutex = true;
+  event_queue.add(event);
+  event_queue_mutex = false;
+  return;
+}
+#endif
 #ifdef SUPPORT_MQTT_EVENT
 /********************************************************************************************/
 /*
@@ -642,7 +683,11 @@ bool RulesMqttData(void)
       }
       value.trim();
       //Create an new event. Cannot directly call RulesProcessEvent().
+#ifdef EVENT_QUEUE
+      addToEventQueue(event_item.Event + "=" + value);
+#else
       snprintf_P(event_data, sizeof(event_data), PSTR("%s=%s"), event_item.Event.c_str(), value.c_str());
+#endif
     }
   }
   return serviced;
@@ -1152,7 +1197,11 @@ bool RulesCommand(void)
   }
   else if (CMND_EVENT == command_code) {
     if (XdrvMailbox.data_len > 0) {
+#ifdef EVENT_QUEUE
+      addToEventQueue(XdrvMailbox.data);
+#else
       strlcpy(event_data, XdrvMailbox.data, sizeof(event_data));
+#endif
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, D_JSON_DONE);
   }
