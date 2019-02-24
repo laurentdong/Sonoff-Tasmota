@@ -105,17 +105,20 @@ const char kCompareOperators[] PROGMEM = "=\0>\0<\0|\0==!=>=<=";
 
   const uint8_t kExpressionOperatorsPriorities[] PROGMEM = {1, 1, 2, 2, 3, 4};
   #define MAX_EXPRESSION_OPERATOR_PRIORITY    4
+#endif  // USE_EXPRESSION
 
+enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE };
+const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION "|" D_CMND_SUBSCRIBE "|" D_CMND_UNSUBSCRIBE ;
+
+#ifdef SUPPORT_MQTT_EVENT
+  #include <LinkedList.h>                 // Import LinkedList library
   typedef struct {
     String Event;
     String Topic;
     String Key;
   } MQTT_Subscription;
   LinkedList<MQTT_Subscription> subscriptions;
-#endif  // USE_EXPRESSION
-
-enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION, CMND_SUBSCRIBE, CMND_UNSUBSCRIBE };
-const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION "|" D_CMND_SUBSCRIBE "|" D_CMND_UNSUBSCRIBE ;
+#endif    //SUPPORT_MQTT_EVENT
 
 String rules_event_value;
 unsigned long rules_timer[MAX_RULE_TIMERS] = { 0 };
@@ -586,7 +589,7 @@ void RulesTeleperiod(void)
   rules_teleperiod = 0;
 }
 
-#ifdef USE_EXPRESSION
+#ifdef SUPPORT_MQTT_EVENT
 /********************************************************************************************/
 /*
  * Rules: Process received MQTT message.
@@ -623,10 +626,18 @@ bool RulesMqttData(void)
       } else {      //If specified Key, need to parse Key/Value from JSON data
         StaticJsonBuffer<400> jsonBuf;
         JsonObject& jsonData = jsonBuf.parseObject(sData);
-        if (jsonData.success() && jsonData[event_item.Key.c_str()].success()) {
-          value = (const char *)jsonData[event_item.Key.c_str()];
-        } else {      //Cannot find Key/Value, ignore this message
-          break;
+        String key1 = event_item.Key;
+        String key2;
+        if (!jsonData.success()) break;       //Failed to parse JSON data, ignore this message.
+        int dot;
+        if ((dot = key1.indexOf('.')) > 0) {
+          key2 = key1.substring(dot+1);
+          key1 = key1.substring(0, dot);
+          if (!jsonData[key1][key2].success()) break;   //Failed to get the key/value, ignore this message.
+          value = (const char *)jsonData[key1][key2];
+        } else {
+          if (!jsonData[key1].success()) break;
+          value = (const char *)jsonData[key1];
         }
       }
       value.trim();
@@ -762,7 +773,9 @@ String RulesUnsubscribe(const char * data, int data_len)
   }
   return events;
 }
+#endif //     SUPPORT_MQTT_EVENT
 
+#ifdef USE_EXPRESSION
 /********************************************************************************************/
 /*
  * Parse a number value
@@ -1211,14 +1224,14 @@ bool RulesCommand(void)
       }
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
-#ifdef USE_EXPRESSION
+#ifdef SUPPORT_MQTT_EVENT
   } else if (CMND_SUBSCRIBE == command_code) {			//MQTT Subscribe command. Subscribe <Event>, <Topic> [, <Key>]
     String result = RulesSubscribe(XdrvMailbox.data, XdrvMailbox.data_len);
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, result.c_str());
   } else if (CMND_UNSUBSCRIBE == command_code) {			//MQTT Un-subscribe command. UnSubscribe <Event>
     String result = RulesUnsubscribe(XdrvMailbox.data, XdrvMailbox.data_len);
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, result.c_str());
-#endif        //USE_EXPRESSION
+#endif        //SUPPORT_MQTT_EVENT
   }
   else serviced = false;  // Unknown command
 
@@ -1260,11 +1273,11 @@ bool Xdrv10(uint8_t function)
     case FUNC_RULES_PROCESS:
       result = RulesProcess();
       break;
-#ifdef USE_EXPRESSION
+#ifdef SUPPORT_MQTT_EVENT
     case FUNC_MQTT_DATA:
       result = RulesMqttData();
       break;
-#endif    //USE_EXPRESSION
+#endif    //SUPPORT_MQTT_EVENT
   }
   return result;
 }
