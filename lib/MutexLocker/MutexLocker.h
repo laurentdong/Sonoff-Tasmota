@@ -56,6 +56,16 @@ Usage:
 
 #include <stddef.h>
 
+#define INTERLOCK_WAIT_TIME 100     //Maximum microseconds waiting for the interlock
+unsigned long MICROSECONDS_PASSED(unsigned long start)
+{
+  unsigned long currentTime = micros();
+  if (currentTime > start) {
+    return (currentTime - start);
+  } else {
+    return ()
+  }
+}
 class Mutex
 {
 private:
@@ -67,12 +77,19 @@ private:
   //lock() and unlock() declared as private method to prevent unexpected usages
   bool lock() {
     bool bSucceed = false;
-    noInterrupts();
-    if (!this->interlock) {
-      bSucceed = true;
-      this->interlock = true;
+    unsigned long starttime = micros();
+    while (MICROSECONDS_PASSED(starttime) < INTERLOCK_WAIT_TIME) {
+      noInterrupts();
+      if (!this->interlock) {
+        bSucceed = true;
+        this->interlock = true;
+      }
+      interrupts();
+      if (bSucceed) {
+        break;
+      }
+      yield();
     }
-    interrupts();
     return bSucceed;
   };
 
