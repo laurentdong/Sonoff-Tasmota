@@ -166,7 +166,14 @@ struct RULES {
   uint8_t mems_event = 0;
   bool teleperiod = false;
 
+//#define EVENT_QUEUE
+#ifdef EVENT_QUEUE
+  #include <LinkedList.h>                 // Import LinkedList library
+  LinkedList<String> event_queue;
+  bool event_queue_mutex = false;
+#else
   char event_data[100];
+#endif
 } Rules;
 
 char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
@@ -540,7 +547,29 @@ void RulesEvery50ms(void)
       RulesProcessEvent(json_event);
       Rules.old_dimm = Settings.light_dimmer;
     }
-    else if (Rules.event_data[0]) {
+#ifdef EVENT_QUEUE
+    else if (event_queue.size() > 0 && !event_queue_mutex) {
+      event_queue_mutex = true;
+      String event;
+      if (event_queue.size() > 0) {
+        event = event_queue.remove(0);
+      }
+      event_queue_mutex = false;
+      String parameter;
+      int split;
+      if ((split = event.lastIndexOf('=')) > 0) {
+        parameter = event.substring(split + 1);
+        event = event.substring(0, split);
+        parameter.trim();
+      }
+      event.trim();
+      if (event.length() > 0) {
+        snprintf_P(json_event, sizeof(json_event), PSTR("{\"Event\":{\"%s\":\"%s\"}}"), event.c_str(), parameter.c_str());
+        RulesProcessEvent(json_event);
+      }
+    }
+#else
+    else if (event_data[0]) {
       char *event;
       char *parameter;
       event = strtok_r(Rules.event_data, "=", &parameter);     // Rules.event_data = fanspeed=10
@@ -558,6 +587,7 @@ void RulesEvery50ms(void)
         Rules.event_data[0] ='\0';
       }
     }
+#endif
     else if (Rules.vars_event || Rules.mems_event){
       if (Rules.vars_event) {
         for (uint32_t i = 0; i < MAX_RULE_VARS; i++) {
@@ -670,6 +700,18 @@ void RulesTeleperiod(void)
   RulesProcess();
   Rules.teleperiod = false;
 }
+#ifdef EVENT_QUEUE
+void addToEventQueue(String event)
+{
+  while (event_queue_mutex) {
+    delay(0);
+  }
+  event_queue_mutex = true;
+  event_queue.add(event);
+  event_queue_mutex = false;
+  return;
+}
+#endif
 
 #ifdef SUPPORT_MQTT_EVENT
 /********************************************************************************************/
@@ -722,7 +764,11 @@ bool RulesMqttData(void)
       }
       value.trim();
       //Create an new event. Cannot directly call RulesProcessEvent().
+#ifdef EVENT_QUEUE
+      addToEventQueue(event_item.Event + "=" + value);
+#else
       snprintf_P(Rules.event_data, sizeof(Rules.event_data), PSTR("%s=%s"), event_item.Event.c_str(), value.c_str());
+#endif
     }
   }
   return serviced;
