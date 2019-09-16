@@ -364,7 +364,7 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
 
   delay(0);                                               // Prohibit possible loop software watchdog
 
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event = %s, Rule = %s"), event_saved.c_str(), Settings.rules[rule_set]);
+//AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event = %s, Rule = %s"), event_saved.c_str(), Settings.rules[rule_set]);
 
   String rules = Settings.rules[rule_set];
 
@@ -399,7 +399,7 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
     Rules.event_value = "";
     String event = event_saved;
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event |%s|, Rule |%s|, Command(s) |%s|"), event.c_str(), event_trigger.c_str(), commands.c_str());
+//AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event |%s|, Rule |%s|, Command(s) |%s|"), event.c_str(), event_trigger.c_str(), commands.c_str());
 
     if (RulesRuleMatch(rule_set, event, event_trigger)) {
       commands.trim();
@@ -466,7 +466,7 @@ bool RulesProcessEvent(char *json_event)
   }
   event_saved.toUpperCase();
 
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event %s"), event_saved.c_str());
+//AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event %s"), event_saved.c_str());
 
   for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
     if (strlen(Settings.rules[i]) && bitRead(Settings.rule_enabled, i)) {
@@ -544,7 +544,6 @@ void RulesEvery50ms(void)
       char *event;
       char *parameter;
       event = strtok_r(Rules.event_data, "=", &parameter);     // Rules.event_data = fanspeed=10
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Parse event into two pieces, Event: %s, Parameter: %s"), event, parameter);
       if (event) {
         event = Trim(event);
         if (parameter) {
@@ -554,7 +553,6 @@ void RulesEvery50ms(void)
         }
         snprintf_P(json_event, sizeof(json_event), PSTR("{\"Event\":{\"%s\":\"%s\"}}"), event, parameter);
         Rules.event_data[0] ='\0';
-        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Going to call RulesPorcessEvent with json_event: %s"), json_event);
         RulesProcessEvent(json_event);
       } else {
         Rules.event_data[0] ='\0';
@@ -692,13 +690,13 @@ bool RulesMqttData(void)
   }
   String sTopic = XdrvMailbox.topic;
   String sData = XdrvMailbox.data;
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
+  //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: MQTT Topic %s, Event %s"), XdrvMailbox.topic, XdrvMailbox.data);
   MQTT_Subscription event_item;
   //Looking for matched topic
   for (uint32_t index = 0; index < subscriptions.size(); index++) {
     event_item = subscriptions.get(index);
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Match MQTT message Topic %s with subscription topic %s"), sTopic.c_str(), event_item.Topic.c_str());
+    //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Match MQTT message Topic %s with subscription topic %s"), sTopic.c_str(), event_item.Topic.c_str());
     if (sTopic.startsWith(event_item.Topic)) {
       //This topic is subscribed by us, so serve it
       serviced = true;
@@ -724,10 +722,7 @@ bool RulesMqttData(void)
       }
       value.trim();
       //Create an new event. Cannot directly call RulesProcessEvent().
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Create new event: %s, data: %s"), event_item.Event.c_str(), value.c_str());
       snprintf_P(Rules.event_data, sizeof(Rules.event_data), PSTR("%s=%s"), event_item.Event.c_str(), value.c_str());
-      //We are not able to process other subscriptions because we do not have an event queue for now.
-      break;
     }
   }
   return serviced;
