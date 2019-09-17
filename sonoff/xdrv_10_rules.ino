@@ -149,21 +149,6 @@ void (* const RulesCommand[])(void) PROGMEM = {
     String Key;
   } MQTT_Subscription;
   LinkedList<MQTT_Subscription> subscriptions;
-<<<<<<< HEAD
-#endif    //SUPPORT_MQTT_EVENT
-
-String rules_event_value;
-unsigned long rules_timer[MAX_RULE_TIMERS] = { 0 };
-uint8_t rules_quota = 0;
-long rules_new_power = -1;
-long rules_old_power = -1;
-long rules_old_dimm = -1;
-
-uint32_t rules_triggers[MAX_RULE_SETS] = { 0 };
-uint16_t rules_last_minute = 60;
-uint8_t rules_trigger_count[MAX_RULE_SETS] = { 0 };
-uint8_t rules_teleperiod = 0;
-=======
 #endif  // SUPPORT_MQTT_EVENT
 
 struct RULES {
@@ -180,7 +165,6 @@ struct RULES {
   uint16_t vars_event = 0;
   uint8_t mems_event = 0;
   bool teleperiod = false;
->>>>>>> 5a832dc1d8dc688ce970fc6d39fc65fd116508eb
 
 //#define EVENT_QUEUE
 #ifdef EVENT_QUEUE
@@ -190,14 +174,10 @@ struct RULES {
 #else
   char event_data[100];
 #endif
-<<<<<<< HEAD
-char vars[MAX_RULE_VARS][33] = { 0 };
-=======
 } Rules;
 
 char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
 
->>>>>>> 5a832dc1d8dc688ce970fc6d39fc65fd116508eb
 #if (MAX_RULE_VARS>16)
 #error MAX_RULE_VARS is bigger than 16
 #endif
@@ -608,15 +588,6 @@ void RulesEvery50ms(void)
       }
     }
 #endif
-<<<<<<< HEAD
-    else if (vars_event) {
-      for (uint8_t i = 0; i < MAX_RULE_VARS-1; i++) {
-        if (bitRead(vars_event, i)) {
-          bitClear(vars_event, i);
-          snprintf_P(json_event, sizeof(json_event), PSTR("{\"Var%d\":{\"State\":%s}}"), i+1, vars[i]);
-          RulesProcessEvent(json_event);
-          break;
-=======
     else if (Rules.vars_event || Rules.mems_event){
       if (Rules.vars_event) {
         for (uint32_t i = 0; i < MAX_RULE_VARS; i++) {
@@ -626,7 +597,6 @@ void RulesEvery50ms(void)
             RulesProcessEvent(json_event);
             break;
           }
->>>>>>> 5a832dc1d8dc688ce970fc6d39fc65fd116508eb
         }
       }
       if (Rules.mems_event) {
@@ -742,10 +712,7 @@ void addToEventQueue(String event)
   return;
 }
 #endif
-<<<<<<< HEAD
-=======
 
->>>>>>> 5a832dc1d8dc688ce970fc6d39fc65fd116508eb
 #ifdef SUPPORT_MQTT_EVENT
 /********************************************************************************************/
 /*
@@ -800,11 +767,7 @@ bool RulesMqttData(void)
 #ifdef EVENT_QUEUE
       addToEventQueue(event_item.Event + "=" + value);
 #else
-<<<<<<< HEAD
-      snprintf_P(event_data, sizeof(event_data), PSTR("%s=%s"), event_item.Event.c_str(), value.c_str());
-=======
       snprintf_P(Rules.event_data, sizeof(Rules.event_data), PSTR("%s=%s"), event_item.Event.c_str(), value.c_str());
->>>>>>> 5a832dc1d8dc688ce970fc6d39fc65fd116508eb
 #endif
     }
   }
@@ -1800,24 +1763,16 @@ void CmndRuleTimer(void)
     }
     ResponseJsonEnd();
   }
-<<<<<<< HEAD
-  else if (CMND_EVENT == command_code) {
-    if (XdrvMailbox.data_len > 0) {
-#ifdef EVENT_QUEUE
-      addToEventQueue(XdrvMailbox.data);
-#else
-      strlcpy(event_data, XdrvMailbox.data, sizeof(event_data));
-#endif
-    }
-    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_SVALUE, command, D_JSON_DONE);
-=======
 }
 
 void CmndEvent(void)
 {
   if (XdrvMailbox.data_len > 0) {
+#ifdef EVENT_QUEUE
+    addToEventQueue(XdrvMailbox.data);
+#else
     strlcpy(Rules.event_data, XdrvMailbox.data, sizeof(Rules.event_data));
->>>>>>> 5a832dc1d8dc688ce970fc6d39fc65fd116508eb
+#endif
   }
   ResponseCmndDone();
 }
