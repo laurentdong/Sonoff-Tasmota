@@ -727,7 +727,7 @@ void addToEventQueue(String event)
 bool RulesMqttData(void)
 {
   bool serviced = false;
-  if (XdrvMailbox.data_len < 1 || XdrvMailbox.data_len > 128) {
+  if (XdrvMailbox.data_len < 1 || XdrvMailbox.data_len > 256) {
     return false;
   }
   String sTopic = XdrvMailbox.topic;
@@ -746,7 +746,7 @@ bool RulesMqttData(void)
       if (event_item.Key.length() == 0) {   //If did not specify Key
         value = sData;
       } else {      //If specified Key, need to parse Key/Value from JSON data
-        StaticJsonBuffer<400> jsonBuf;
+        StaticJsonBuffer<500> jsonBuf;
         JsonObject& jsonData = jsonBuf.parseObject(sData);
         String key1 = event_item.Key;
         String key2;
@@ -1232,6 +1232,7 @@ void CmndIf()
     parameters[XdrvMailbox.data_len] = '\0';
     ProcessIfStatement(parameters);
   }
+  ResponseCmndDone();
 }
 
 /********************************************************************************************/
