@@ -76,8 +76,7 @@ void PN532_Init(void)
         PN532_setPassiveActivationRetries(0xFF);
         PN532_SAMConfig();
         pn532_model = 1;
-        snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC Reader detected (V%u.%u)",(ver>>16) & 0xFF, (ver>>8) & 0xFF);
-        AddLog(LOG_LEVEL_INFO);
+        AddLog_P2(LOG_LEVEL_INFO,"NFC: PN532 NFC Reader detected (V%u.%u)",(ver>>16) & 0xFF, (ver>>8) & 0xFF);
       }
     }
   }
@@ -143,12 +142,12 @@ int8_t PN532_writeCommand(const uint8_t *header, uint8_t hlen, const uint8_t *bo
   uint8_t sum = PN532_HOSTTOPN532;    // sum of TFI + DATA
 
   PN532_Serial->write(header, hlen);
-  for (uint8_t i = 0; i < hlen; i++) {
+  for (uint32_t i = 0; i < hlen; i++) {
     sum += header[i];
   }
 
   PN532_Serial->write(body, blen);
-  for (uint8_t i = 0; i < blen; i++) {
+  for (uint32_t i = 0; i < blen; i++) {
     sum += body[i];
   }
 
@@ -199,7 +198,7 @@ int16_t PN532_readResponse(uint8_t buf[], uint8_t len, uint16_t timeout = 50)
   }
 
   uint8_t sum = PN532_PN532TOHOST + cmd;
-  for (uint8_t i=0; i<length[0]; i++) {
+  for (uint32_t i=0; i<length[0]; i++) {
     sum += buf[i];
   }
 
@@ -283,7 +282,7 @@ bool PN532_readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uidL
   /* Card appears to be Mifare Classic */
   *uidLength = pn532_packetbuffer[5];
 
-  for (uint8_t i = 0; i < pn532_packetbuffer[5]; i++) {
+  for (uint32_t i = 0; i < pn532_packetbuffer[5]; i++) {
     uid[i] = pn532_packetbuffer[6 + i];
   }
 
@@ -418,10 +417,7 @@ void PN532_ScanForTag(void)
       char card_datas[34];
 #endif // USE_PN532_DATA_FUNCTION
 
-      sprintf(uids,"");
-      for (uint8_t i = 0;i < uid_len;i++) {
-        sprintf(uids,"%s%02X",uids,uid[i]);
-      }
+      ToHex_P((unsigned char*)uid, uid_len, uids, sizeof(uids));
 
 #ifdef USE_PN532_DATA_FUNCTION
       if (uid_len == 4) { // Lets try to read block 1 of the mifare classic card for more information
@@ -431,7 +427,7 @@ void PN532_ScanForTag(void)
 #ifdef USE_PN532_DATA_RAW
             memcpy(&card_datas,&card_data,sizeof(card_data));
 #else
-            for (uint8_t i = 0;i < sizeof(card_data);i++) {
+            for (uint32_t i = 0;i < sizeof(card_data);i++) {
               if ((isalpha(card_data[i])) || ((isdigit(card_data[i])))) {
                 card_datas[i] = char(card_data[i]);
               } else {
@@ -441,13 +437,12 @@ void PN532_ScanForTag(void)
 #endif // USE_PN532_DATA_RAW
           }
           if (pn532_function == 1) { // erase block 1 of card
-            for (uint8_t i = 0;i<16;i++) {
+            for (uint32_t i = 0;i<16;i++) {
               card_data[i] = 0x00;
             }
             if (mifareclassic_WriteDataBlock(1, card_data)) {
               erase_success = true;
-              snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Erase success");
-              AddLog(LOG_LEVEL_INFO);
+              AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Erase success"));
               memcpy(&card_datas,&card_data,sizeof(card_data)); // Cast block 1 to a string
             }
           }
@@ -456,13 +451,12 @@ void PN532_ScanForTag(void)
             memcpy(&card_data,&pn532_newdata,sizeof(card_data));
             if (mifareclassic_WriteDataBlock(1, card_data)) {
               set_success = true;
-              snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Data write successful");
-              AddLog(LOG_LEVEL_INFO);
+              AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Data write successful"));
               memcpy(&card_datas,&card_data,sizeof(card_data)); // Cast block 1 to a string
             }
 #else
             bool IsAlphaNumeric = true;
-            for (uint8_t i = 0;i < pn532_newdata_len;i++) {
+            for (uint32_t i = 0;i < pn532_newdata_len;i++) {
               if ((!isalpha(pn532_newdata[i])) && (!isdigit(pn532_newdata[i]))) {
                 IsAlphaNumeric = false;
               }
@@ -472,13 +466,11 @@ void PN532_ScanForTag(void)
               card_data[pn532_newdata_len] = '\0'; // Enforce null termination
               if (mifareclassic_WriteDataBlock(1, card_data)) {
                 set_success = true;
-                snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Data write successful");
-                AddLog(LOG_LEVEL_INFO);
+                AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Data write successful"));
                 memcpy(&card_datas,&card_data,sizeof(card_data)); // Cast block 1 to a string
               }
             } else {
-              snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Data must be alphanumeric");
-              AddLog(LOG_LEVEL_INFO);
+              AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Data must be alphanumeric"));
             }
 #endif // USE_PN532_DATA_RAW
           }
@@ -489,14 +481,12 @@ void PN532_ScanForTag(void)
       switch (pn532_function) {
         case 0x01:
           if (!erase_success) {
-            snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Erase fail - exiting erase mode");
-            AddLog(LOG_LEVEL_INFO);
+            AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Erase fail - exiting erase mode"));
           }
           break;
         case 0x02:
           if (!set_success) {
-            snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Write failed - exiting set mode");
-            AddLog(LOG_LEVEL_INFO);
+            AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Write failed - exiting set mode"));
           }
         default:
           break;
@@ -504,12 +494,10 @@ void PN532_ScanForTag(void)
       pn532_function = 0;
 #endif // USE_PN532_DATA_FUNCTION
 
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_JSON_TIME "\":\"%s\""), GetDateAndTime(DT_LOCAL).c_str());
-
 #ifdef USE_PN532_DATA_FUNCTION
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"PN532\":{\"UID\":\"%s\", \"DATA\":\"%s\"}}"), mqtt_data, uids, card_datas);
+      ResponseTime_P(PSTR(",\"PN532\":{\"UID\":\"%s\", \"DATA\":\"%s\"}}"), uids, card_datas);
 #else
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"PN532\":{\"UID\":\"%s\"}}"), mqtt_data, uids);
+      ResponseTime_P(PSTR(",\"PN532\":{\"UID\":\"%s\"}}"), uids);
 #endif // USE_PN532_DATA_FUNCTION
 
       MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR), Settings.flag.mqtt_sensor_retain);
@@ -543,17 +531,15 @@ bool PN532_Command(void)
   }
   char sub_string[XdrvMailbox.data_len];
   char sub_string_tmp[XdrvMailbox.data_len];
-  for (uint8_t ca=0;ca<XdrvMailbox.data_len;ca++) {
+  for (uint32_t ca=0;ca<XdrvMailbox.data_len;ca++) {
     if ((' ' == XdrvMailbox.data[ca]) || ('=' == XdrvMailbox.data[ca])) { XdrvMailbox.data[ca] = ','; }
     if (',' == XdrvMailbox.data[ca]) { paramcount++; }
   }
   UpperCase(XdrvMailbox.data,XdrvMailbox.data);
   if (!strcmp(subStr(sub_string, XdrvMailbox.data, ",", 1),"E")) {
     pn532_function = 1; // Block 1 of next card/tag will be reset to 0x00...
-    snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Next scanned tag data block 1 will be erased");
-    AddLog(LOG_LEVEL_INFO);
-    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_JSON_TIME "\":\"%s\""), GetDateAndTime(DT_LOCAL).c_str());
-    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"PN532\":{\"COMMAND\":\"E\"\"}}"), mqtt_data);
+    AddLog_P(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Next scanned tag data block 1 will be erased"));
+    ResponseTime_P(PSTR(",\"PN532\":{\"COMMAND\":\"E\"}}"));
     return serviced;
   }
   if (!strcmp(subStr(sub_string, XdrvMailbox.data, ",", 1),"S")) {
@@ -568,10 +554,8 @@ bool PN532_Command(void)
       memcpy(&pn532_newdata,&sub_string_tmp,pn532_newdata_len);
       pn532_newdata[pn532_newdata_len] = 0x00; // Null terminate the string
       pn532_function = 2;
-      snprintf_P(log_data, sizeof(log_data),"NFC: PN532 NFC - Next scanned tag data block 1 will be set to '%s'",pn532_newdata);
-      AddLog(LOG_LEVEL_INFO);
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_JSON_TIME "\":\"%s\""), GetDateAndTime(DT_LOCAL).c_str());
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"PN532\":{\"COMMAND\":\"S\"\"}}"), mqtt_data);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("NFC: PN532 NFC - Next scanned tag data block 1 will be set to '%s'"), pn532_newdata);
+      ResponseTime_P(PSTR(",\"PN532\":{\"COMMAND\":\"S\"}}"));
       return serviced;
     }
   }
@@ -602,7 +586,7 @@ bool Xsns40(uint8_t function)
     case FUNC_EVERY_SECOND:
       break;
 #ifdef USE_PN532_DATA_FUNCTION
-    case FUNC_COMMAND:
+    case FUNC_COMMAND_SENSOR:
       if (XSNS_40 == XdrvMailbox.index) {
         result = PN532_Command();
       }

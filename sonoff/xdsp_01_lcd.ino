@@ -68,6 +68,8 @@ void LcdInitDriver(void)
   }
 
   if (XDSP_01 == Settings.display_model) {
+    Settings.display_width = Settings.display_cols[0];
+    Settings.display_height = Settings.display_rows;
     lcd = new LiquidCrystal_I2C(Settings.display_address[0], Settings.display_cols[0], Settings.display_rows);
 
 #ifdef USE_DISPLAY_MODES1TO5
@@ -110,7 +112,7 @@ void LcdCenter(uint8_t row, char* txt)
   }
   memset(line, 0x20, Settings.display_cols[0]);
   line[Settings.display_cols[0]] = 0;
-  for (uint8_t i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     line[offset +i] = txt[i];
   }
   lcd->setCursor(0, row);
@@ -127,10 +129,10 @@ bool LcdPrintLog(void)
     if (!disp_screen_buffer_cols) { DisplayAllocScreenBuffer(); }
 
     char* txt = DisplayLogBuffer('\337');
-    if (txt != NULL) {
+    if (txt != nullptr) {
       uint8_t last_row = Settings.display_rows -1;
 
-      for (uint8_t i = 0; i < last_row; i++) {
+      for (uint32_t i = 0; i < last_row; i++) {
         strlcpy(disp_screen_buffer[i], disp_screen_buffer[i +1], disp_screen_buffer_cols);
         lcd->setCursor(0, i);            // Col 0, Row i
         lcd->print(disp_screen_buffer[i +1]);
@@ -138,8 +140,7 @@ bool LcdPrintLog(void)
       strlcpy(disp_screen_buffer[last_row], txt, disp_screen_buffer_cols);
       DisplayFillScreen(last_row);
 
-      snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "[%s]"), disp_screen_buffer[last_row]);
-      AddLog(LOG_LEVEL_DEBUG);
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_DEBUG "[%s]"), disp_screen_buffer[last_row]);
 
       lcd->setCursor(0, last_row);
       lcd->print(disp_screen_buffer[last_row]);
