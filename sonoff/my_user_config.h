@@ -67,13 +67,8 @@
 #define STA_SSID2              ""                // [Ssid2] Optional alternate AP Wifi SSID
 #define STA_PASS2              ""                // [Password2] Optional alternate AP Wifi password
 #define WIFI_CONFIG_TOOL       WIFI_RETRY        // [WifiConfig] Default tool if wifi fails to connect (default option: 4 - WIFI_RETRY)
-                                                 // (WIFI_RESTART, WIFI_SMARTCONFIG, WIFI_MANAGER, WIFI_WPSCONFIG, WIFI_RETRY, WIFI_WAIT, WIFI_SERIAL, WIFI_MANAGER_RESET_ONLY)
-                                                 // The configuration can be changed after first setup using WifiConfig 0, 1, 2, 3, 4, 5, 6 and 7.
-#define WIFI_CONFIG_NO_SSID    WIFI_WPSCONFIG    // Default tool if wifi fails to connect and no SSID is configured
-                                                 //   (WIFI_SMARTCONFIG, WIFI_MANAGER, WIFI_WPSCONFIG, WIFI_SERIAL)
-                                                 //   *** NOTE: When WPS is disabled by USE_WPS below, WIFI_WPSCONFIG will execute WIFI_MANAGER ***
-                                                 //   *** NOTE: When WIFI_MANAGER is disabled by USE_WEBSERVER below, WIFI_MANAGER will execute WIFI_SMARTCONFIG ***
-                                                 //   *** NOTE: When WIFI_SMARTCONFIG is disabled by USE_SMARTCONFIG below, WIFI_SMARTCONFIG will execute WIFI_SERIAL ***
+                                                 // (WIFI_RESTART, WIFI_MANAGER, WIFI_RETRY, WIFI_WAIT, WIFI_SERIAL, WIFI_MANAGER_RESET_ONLY)
+                                                 // The configuration can be changed after first setup using WifiConfig 0, 2, 4, 5, 6 and 7.
 
 // -- Syslog --------------------------------------
 #define SYS_LOG_HOST           ""                // [LogHost] (Linux) syslog host
@@ -246,8 +241,6 @@
 
 // -- Wifi Config tools ---------------------------
 #define WIFI_SOFT_AP_CHANNEL   1                 // Soft Access Point Channel number between 1 and 13 as used by Wifi Manager web GUI
-//#define USE_WPS                                  // Add support for WPS as initial wifi configuration tool (+33k code, 1k mem (5k mem with core v2.4.2+))
-//#define USE_SMARTCONFIG                          // Add support for Wifi SmartConfig as initial wifi configuration tool (+23k code, +0.6k mem)
 
 // -- OTA -----------------------------------------
 //#define USE_ARDUINO_OTA                          // Add optional support for Arduino OTA (+13k code)
@@ -321,6 +314,8 @@
 #define USE_ARILUX_RF                            // Add support for Arilux RF remote controller (+0k8 code, 252 iram (non 2.3.0))
 //#define USE_SHUTTER                              // Add Shutter support for up to 4 shutter with different motortypes (+6k code)
 //#define USE_DEEPSLEEP                            // Add support for deepsleep (+1k code)
+//#define USE_EXS_DIMMER                           // Add support for ES-Store WiFi Dimmer (+1k5 code)
+//  #define EXS_MCU_CMNDS                            // Add command to send MCU commands (+0k8 code)
 
 // -- Optional light modules ----------------------
 #define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
@@ -449,9 +444,9 @@
 #define USE_PZEM_AC                              // Add support for PZEM014,016 Energy monitor (+1k1 code)
 #define USE_PZEM_DC                              // Add support for PZEM003,017 Energy monitor (+1k1 code)
 #define USE_MCP39F501                            // Add support for MCP39F501 Energy monitor as used in Shelly 2 (+3k1 code)
-//#define USE_SDM120_2                             // Add support for Eastron SDM120-Modbus energy monitor (+1k1 code)
+//#define USE_SDM120                               // Add support for Eastron SDM120-Modbus energy monitor (+1k1 code)
   #define SDM120_SPEED         2400              // SDM120-Modbus RS485 serial speed (default: 2400 baud)
-//#define USE_SDM630_2                             // Add support for Eastron SDM630-Modbus energy monitor (+0k6 code)
+//#define USE_SDM630                               // Add support for Eastron SDM630-Modbus energy monitor (+0k6 code)
   #define SDM630_SPEED         9600              // SDM630-Modbus RS485 serial speed (default: 9600 baud)
 //#define USE_DDS2382                              // Add support for Hiking DDS2382 Modbus energy monitor (+0k6 code)
   #define DDS2382_SPEED        9600              // Hiking DDS2382 Modbus RS485 serial speed (default: 9600 baud)
@@ -460,12 +455,6 @@
 //#define USE_SOLAX_X1                             // Add support for Solax X1 series Modbus log info (+3k1 code)
   #define SOLAXX1_SPEED        9600              // Solax X1 Modbus RS485 serial speed (default: 9600 baud)
   #define SOLAXX1_PV2                            // Solax X1 using second PV
-
-//#define USE_SDM120                               // Add support for Eastron SDM120-Modbus energy meter (+2k4 code)
-//  #define SDM120_SPEED         2400              // SDM120-Modbus RS485 serial speed (default: 2400 baud)
-  #define USE_SDM220                             // Add extra parameters for SDM220 (+0k1 code)
-//#define USE_SDM630                               // Add support for Eastron SDM630-Modbus energy meter (+2k code)
-//  #define SDM630_SPEED         9600              // SDM630-Modbus RS485 serial speed (default: 9600 baud)
 
 // -- Low level interface devices -----------------
 #define USE_DHT                                  // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor (1k6 code)
@@ -545,6 +534,10 @@
 //#define USE_HRE                                  // Add support for Badger HR-E Water Meter (+1k4 code)
 //#define USE_A4988_STEPPER                        // Add support for A4988/DRV8825 stepper-motor-driver-circuit (+10k5 code)
 
+//#define USE_ARDUINO_SLAVE                        // Add support for Arduino Uno/Pro Mini via serial interface including flashing (+2k3 code, 44 mem)
+  #define USE_ARDUINO_FLASH_SPEED 57600          // Usually 57600 for 3.3V variants and 115200 for 5V variants
+  #define USE_ARDUINO_SERIAL_SPEED 57600         // Depends on the sketch that is running on the Uno/Pro Mini
+
 // -- End of general directives -------------------
 
 /*********************************************************************************************\
@@ -562,7 +555,6 @@
  * See RELEASENOTES.md for selected features
 \*********************************************************************************************/
 
-//#define FIRMWARE_CLASSIC                         // Create sonoff-classic with initial configuration tools WPS, SmartConfig and WifiManager
 #define FIRMWARE_BASIC                           // Create sonoff-basic with no sensors
 //#define FIRMWARE_SENSORS                         // Create sonoff-sensors with useful sensors enabled
 //#define FIRMWARE_KNX_NO_EMULATION                // Create sonoff-knx with KNX but without Emulation

@@ -70,6 +70,8 @@
 #include "settings.h"
 
 const char kSleepMode[] PROGMEM = "Dynamic|Normal";
+const char kPrefixes[] PROGMEM = D_CMND "|" D_STAT "|" D_TELE;
+const char kCodeImage[] PROGMEM = "sonoff|minimal|sensors|knx|basic|display|ir";
 
 // Global variables
 SerialConfig serial_config = SERIAL_8N1;    // Serial interface configuration 8 data bits, No parity, 1 stop bit
@@ -248,7 +250,8 @@ char* GetTopic_P(char *stopic, uint32_t prefix, char *topic, const char* subtopi
   snprintf_P(romram, sizeof(romram), subtopic);
   if (fallback_topic_flag || (prefix > 3)) {
     prefix &= 3;
-    fulltopic = FPSTR(kPrefixes[prefix]);
+    char stemp[11];
+    fulltopic = GetTextIndexed(stemp, sizeof(stemp), prefix, kPrefixes);
     fulltopic += F("/");
     fulltopic += mqtt_client;
     fulltopic += F("_fb");                    // cmnd/<mqttclient>_fb
@@ -260,7 +263,7 @@ char* GetTopic_P(char *stopic, uint32_t prefix, char *topic, const char* subtopi
     }
     for (uint32_t i = 0; i < 3; i++) {
       if ('\0' == Settings.mqtt_prefix[i][0]) {
-        snprintf_P(Settings.mqtt_prefix[i], sizeof(Settings.mqtt_prefix[i]), kPrefixes[i]);
+        GetTextIndexed(Settings.mqtt_prefix[i], sizeof(Settings.mqtt_prefix[i]), i, kPrefixes);
       }
     }
     fulltopic.replace(FPSTR(MQTT_TOKEN_PREFIX), Settings.mqtt_prefix[prefix]);
@@ -837,9 +840,6 @@ void PerformEverySecond(void)
       XdrvCall(FUNC_AFTER_TELEPERIOD);
     }
   }
-
-  XdrvCall(FUNC_EVERY_SECOND);
-  XsnsCall(FUNC_EVERY_SECOND);
 }
 
 /*********************************************************************************************\
@@ -937,8 +937,6 @@ void Every250mSeconds(void)
 
   switch (state_250mS) {
   case 0:                                                 // Every x.0 second
-    PerformEverySecond();
-
     if (ota_state_flag && BACKLOG_EMPTY) {
       ota_state_flag--;
       if (2 == ota_state_flag) {
@@ -1246,7 +1244,7 @@ void SerialInput(void)
   if (Settings.flag.mqtt_serial && serial_in_byte_counter && (millis() > (serial_polling_window + SERIAL_POLLING))) {
     serial_in_buffer[serial_in_byte_counter] = 0;                                // Serial data completed
     char hex_char[(serial_in_byte_counter * 2) + 2];
-    ResponseTime_P(PSTR(",\"" D_JSON_SERIALRECEIVED "\":\"%s\"}"),
+    Response_P(PSTR(",\"" D_JSON_SERIALRECEIVED "\":\"%s\"}"),
       (Settings.flag.mqtt_serial_raw) ? ToHex_P((unsigned char*)serial_in_buffer, serial_in_byte_counter, hex_char, sizeof(hex_char)) : serial_in_buffer);
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_SERIALRECEIVED));
     XdrvRulesProcess();
@@ -1477,7 +1475,6 @@ void setup(void)
   RtcRebootLoad();
   if (!RtcRebootValid()) {
     RtcReboot.fast_reboot_count = 0;
-    UpdateQuickPowerCycle(true);  // As RTC is invalid it must be a power cycle
   }
   RtcReboot.fast_reboot_count++;
   RtcRebootSave();
@@ -1502,6 +1499,7 @@ void setup(void)
   GetFeatures();
 
   if (1 == RtcReboot.fast_reboot_count) {  // Allow setting override only when all is well
+    UpdateQuickPowerCycle(true);
     XdrvCall(FUNC_SETTINGS_OVERRIDE);
   }
 
@@ -1551,8 +1549,6 @@ void setup(void)
       AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION D_LOG_SOME_SETTINGS_RESET " (%d)"), RtcReboot.fast_reboot_count);
     }
   }
-
-//  UpdateQuickPowerCycle(true);  // Test location
 
   Format(mqtt_client, Settings.mqtt_client, sizeof(mqtt_client));
   Format(mqtt_topic, Settings.mqtt_topic, sizeof(mqtt_topic));
@@ -1682,6 +1678,12 @@ void loop(void)
     Every250mSeconds();
     XdrvCall(FUNC_EVERY_250_MSECOND);
     XsnsCall(FUNC_EVERY_250_MSECOND);
+  }
+  if (TimeReached(state_second)) {
+    SetNextTimeInterval(state_second, 1000);
+    PerformEverySecond();
+    XdrvCall(FUNC_EVERY_SECOND);
+    XsnsCall(FUNC_EVERY_SECOND);
   }
 
   if (!serial_local) { SerialInput(); }
