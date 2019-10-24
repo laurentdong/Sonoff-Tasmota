@@ -113,10 +113,10 @@ void GetFeatures(void)
   feature_drv1 |= 0x10000000;  // xdrv_11_knx.ino
 #endif
 #ifdef USE_WPS
-  feature_drv1 |= 0x20000000;  // support.ino
+  feature_drv1 |= 0x20000000;  // support.ino - removed with version 6.6.0.21
 #endif
 #ifdef USE_SMARTCONFIG
-  feature_drv1 |= 0x40000000;  // support.ino
+  feature_drv1 |= 0x40000000;  // support.ino - removed with version 6.6.0.21
 #endif
 #ifdef USE_ENERGY_POWER_LIMIT
   feature_drv1 |= 0x80000000;  // xdrv_03_energy.ino
@@ -306,13 +306,13 @@ void GetFeatures(void)
   feature_sns1 |= 0x02000000;  // xsns_22_sr04.ino
 #endif
 #ifdef USE_SDM120
-  feature_sns1 |= 0x04000000;  // xsns_23_sdm120.ino
+  feature_sns1 |= 0x04000000;  // xnrg_08_sdm120.ino
 #endif
 #ifdef USE_SI1145
   feature_sns1 |= 0x08000000;  // xsns_24_si1145.ino
 #endif
 #ifdef USE_SDM630
-  feature_sns1 |= 0x10000000;  // xsns_25_sdm630.ino
+  feature_sns1 |= 0x10000000;  // xnrg_10_sdm630.ino
 #endif
 #ifdef USE_LM75AD
   feature_sns1 |= 0x20000000;  // xsns_26_lm75ad.ino
@@ -419,7 +419,7 @@ void GetFeatures(void)
   feature_sns2 |= 0x20000000;  // xsns_48_chirp.ino
 #endif
 #ifdef USE_SOLAX_X1
-  feature_sns2 |= 0x40000000;  // xsns_49_solaxX1.ino
+  feature_sns2 |= 0x40000000;  // xnrg_12_solaxX1.ino
 #endif
 #ifdef USE_PAJ7620
   feature_sns2 |= 0x80000000;  // xsns_50_paj7620.ino
@@ -472,11 +472,14 @@ void GetFeatures(void)
   feature5 |= 0x00002000;  // xdrv_06_snfbridge.ino
 #endif
 #ifdef USE_SONOFF_L1
-  feature5 |= 0x00004000;
+  feature5 |= 0x00004000;  // xlgt_05_sonoff_l1.ino
 #endif
-//  feature5 |= 0x00008000;
-
-//  feature5 |= 0x00010000;
+#ifdef USE_EXS_DIMMER
+  feature5 |= 0x00008000;  // xdrv_30_exs_dimmer.ino
+#endif
+#ifdef USE_ARDUINO_SLAVE
+  feature5 |= 0x00010000;  // xdrv_31_arduino_slave.ino
+#endif
 //  feature5 |= 0x00020000;
 //  feature5 |= 0x00040000;
 //  feature5 |= 0x00080000;

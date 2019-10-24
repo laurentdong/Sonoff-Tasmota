@@ -28,7 +28,7 @@
 #define XDRV_01                               1
 
 #ifndef WIFI_SOFT_AP_CHANNEL
-#define WIFI_SOFT_AP_CHANNEL                  1          // Soft Access Point Channel number between 1 and 11 as used by SmartConfig web GUI
+#define WIFI_SOFT_AP_CHANNEL                  1          // Soft Access Point Channel number between 1 and 11 as used by WifiManager web GUI
 #endif
 
 const uint16_t CHUNKED_BUFFER_SIZE = 400;                // Chunk buffer size (should be smaller than half mqtt_date size)
@@ -44,7 +44,7 @@ const uint16_t HTTP_REFRESH_TIME = 2345;                 // milliseconds
 uint8_t *efm8bb1_update = nullptr;
 #endif  // USE_RF_FLASH
 
-enum UploadTypes { UPL_TASMOTA, UPL_SETTINGS, UPL_EFM8BB1 };
+enum UploadTypes { UPL_TASMOTA, UPL_SETTINGS, UPL_EFM8BB1, UPL_ARDUINOSLAVE };
 
 static const char * HEADER_KEYS[] = { "User-Agent", };
 
@@ -2037,12 +2037,25 @@ void HandleUploadDone(void)
     WSContentSend_P(PSTR("%06x'>" D_SUCCESSFUL "</font></b><br>"), WebColor(COL_TEXT_SUCCESS));
     WSContentSend_P(HTTP_MSG_RSTRT);
     ShowWebSource(SRC_WEBGUI);
+#ifdef USE_ARDUINO_SLAVE
+    if (ArduinoSlave_GetFlagFlashing()) {
+      restart_flag = 0;
+    } else { // It was a normal firmware file, or we are ready to restart device
+      restart_flag = 2;
+    }
+#else
     restart_flag = 2;  // Always restart to re-enable disabled features during update
+#endif
   }
   SettingsBufferFree();
   WSContentSend_P(PSTR("</div><br>"));
   WSContentSpaceButton(BUTTON_MAIN);
   WSContentStop();
+#ifdef USE_ARDUINO_SLAVE
+  if (ArduinoSlave_GetFlagFlashing()) {
+    ArduinoSlave_Flash();
+  }
+#endif
 }
 
 void HandleUploadLoop(void)
@@ -2108,6 +2121,14 @@ void HandleUploadLoop(void)
           if (Web.upload_error != 0) { return; }
         } else
 #endif  // USE_RF_FLASH
+#ifdef USE_ARDUINO_SLAVE
+        if ((WEMOS == my_module_type) && (upload.buf[0] == ':')) {  // Check if this is a ARDUINO SLAVE hex file
+          Update.end();              // End esp8266 update session
+          Web.upload_file_type = UPL_ARDUINOSLAVE;
+          Web.upload_error = ArduinoSlave_UpdateInit();
+          if (Web.upload_error != 0) { return; }
+        } else
+#endif
         {
           if (upload.buf[0] != 0xE9) {
             Web.upload_error = 3;  // Magic byte is not 0xE9
@@ -2166,6 +2187,11 @@ void HandleUploadLoop(void)
       }
     }
 #endif  // USE_RF_FLASH
+#ifdef USE_ARDUINO_SLAVE
+    else if (UPL_ARDUINOSLAVE == Web.upload_file_type) {
+      ArduinoSlave_WriteBuffer(upload.buf, upload.currentSize);
+    }
+#endif
     else {  // firmware
       if (!Web.upload_error && (Update.write(upload.buf, upload.currentSize) != upload.currentSize)) {
         Web.upload_error = 5;  // Upload buffer miscompare
@@ -2217,6 +2243,13 @@ void HandleUploadLoop(void)
       Web.upload_file_type = UPL_TASMOTA;
     }
 #endif  // USE_RF_FLASH
+#ifdef USE_ARDUINO_SLAVE
+    else if (UPL_ARDUINOSLAVE == Web.upload_file_type) {
+      // Done writing the hex to SPI flash
+      ArduinoSlave_SetFlagFlashing(true); // So we know on upload success page if it needs to flash hex or do a normal restart
+      Web.upload_file_type = UPL_TASMOTA;
+    }
+#endif
     else {
       if (!Update.end(true)) { // true to set the size to the current progress
         if (_serialoutput) { Update.printError(Serial); }
@@ -2449,152 +2482,6 @@ String UrlEncode(const String& text)
 	}
 	return encoded;
 }
-
-#ifdef USE_SENDMAIL
-
-#include "sendemail.h"
-
-//SendEmail(const String& host, const int port, const String& user, const String& passwd, const int timeout, const bool ssl);
-//SendEmail::send(const String& from, const String& to, const String& subject, const String& msg)
-// sendmail [server:port:user:passwd:from:to:subject] data
-// sendmail [*:*:*:*:*:to:subject] data uses defines from user_config
-// sendmail currently only works with core 2.4.2
-
-
-#define SEND_MAIL_MINRAM 12*1024
-
-uint16_t SendMail(char *buffer) {
-  uint16_t count;
-  char *params,*oparams;
-  char *mserv;
-  uint16_t port;
-  char *user;
-  char *pstr;
-  char *passwd;
-  char *from;
-  char *to;
-  char *subject;
-  char *cmd;
-  char secure=0,auth=0;
-  uint16_t status=1;
-  SendEmail *mail=0;
-
-  //DebugFreeMem();
-
-// return if not enough memory
-  uint16_t mem=ESP.getFreeHeap();
-  if (mem<SEND_MAIL_MINRAM) {
-    return 4;
-  }
-
-  while (*buffer==' ') buffer++;
-
-  // copy params
-  oparams=(char*)calloc(strlen(buffer)+2,1);
-  if (!oparams) return 4;
-
-  params=oparams;
-
-  strcpy(params,buffer);
-
-  if (*params=='p') {
-      auth=1;
-      params++;
-  }
-
-  if (*params!='[') {
-      goto exit;
-  }
-  params++;
-
-  mserv=strtok(params,":");
-  if (!mserv) {
-      goto exit;
-  }
-
-  // port
-  pstr=strtok(NULL,":");
-  if (!pstr) {
-      goto exit;
-  }
-
-#ifdef EMAIL_PORT
-  if (*pstr=='*') {
-    port=EMAIL_PORT;
-  } else {
-    port=atoi(pstr);
-  }
-#else
-  port=atoi(pstr);
-#endif
-
-  user=strtok(NULL,":");
-  if (!user) {
-      goto exit;
-  }
-
-  passwd=strtok(NULL,":");
-  if (!passwd) {
-      goto exit;
-  }
-
-  from=strtok(NULL,":");
-  if (!from) {
-      goto exit;
-  }
-
-  to=strtok(NULL,":");
-  if (!to) {
-      goto exit;
-  }
-
-  subject=strtok(NULL,"]");
-  if (!subject) {
-      goto exit;
-  }
-
-  cmd=subject+strlen(subject)+1;
-
-#ifdef EMAIL_USER
-  if (*user=='*') {
-    user=(char*)EMAIL_USER;
-  }
-#endif
-#ifdef EMAIL_PASSWORD
-  if (*passwd=='*') {
-    passwd=(char*)EMAIL_PASSWORD;
-  }
-#endif
-#ifdef EMAIL_SERVER
-  if (*mserv=='*') {
-    mserv=(char*)EMAIL_SERVER;
-  }
-#endif //USE_SENDMAIL
-
-  // auth = 0 => AUTH LOGIN 1 => PLAIN LOGIN
-  // 2 seconds timeout
-  #define MAIL_TIMEOUT 2000
-  mail = new SendEmail(mserv, port,user,passwd, MAIL_TIMEOUT, auth);
-
-#ifdef EMAIL_FROM
-  if (*from=='*') {
-    from=(char*)EMAIL_FROM;
-  }
-#endif
-
-exit:
-  if (mail) {
-    bool result=mail->send(from,to,subject,cmd);
-    delete mail;
-    if (result==true) status=0;
-  }
-
-
-  if (oparams) free(oparams);
-  return status;
-}
-
-#endif
 
 int WebSend(char *buffer)
 {
