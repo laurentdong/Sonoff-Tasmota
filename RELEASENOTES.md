@@ -1,14 +1,15 @@
-<img src="https://github.com/arendst/Sonoff-Tasmota/blob/master/tools/logo/TASMOTA_FullLogo_Vector.svg" alt="Logo" align="right" height="76"/>
+<img src="https://github.com/arendst/Tasmota/blob/master/tools/logo/TASMOTA_FullLogo_Vector.svg" alt="Logo" align="right" height="76"/>
 
 # RELEASE NOTES
 
 ## Migration Information
-See [wiki migration path](https://github.com/arendst/Sonoff-Tasmota/wiki/Upgrade#migration-path) for instructions how to migrate to a major version. Pay attention to the following version breaks due to dynamic settings updates:
+See [wiki migration path](https://github.com/arendst/Tasmota/wiki/Upgrade#migration-path) for instructions how to migrate to a major version. Pay attention to the following version breaks due to dynamic settings updates:
 
 1. Migrate to **Sonoff-Tasmota 3.9.x**
 2. Migrate to **Sonoff-Tasmota 4.x**
 3. Migrate to **Sonoff-Tasmota 5.14**
-4. Migrate to **Sonoff-Tasmota 6.x**
+4. Migrate to **Sonoff-Tasmota 6.7.1**
+5. Migrate to **Tasmota 7.x**
 
 ## Supported Core versions
 This release will be supported from ESP8266/Arduino library Core version **pre-2.6.0** due to reported security and stability issues on previous Core version.
@@ -16,7 +17,7 @@ This release will be supported from ESP8266/Arduino library Core version **pre-2
 Although it might still compile on previous Core versions all support will be removed starting in the next Release.
 
 ## Support of TLS
-To save resources when TLS is enabled mDNS needs to be disabled. In addition to TLS using fingerprints now also user supplied CA certs and AWS IoT is supported. See full documentation on https://github.com/arendst/Sonoff-Tasmota/wiki/AWS-IoT
+To save resources when TLS is enabled mDNS needs to be disabled. In addition to TLS using fingerprints now also user supplied CA certs and AWS IoT is supported. See full documentation on https://github.com/arendst/Tasmota/wiki/AWS-IoT
 
 ## Initial configuration tools
 For initial configuration this release supports Webserver based **WifiManager** or **Serial** based command interface only. Support for **WPS** and **SmartConfig** has been removed.
@@ -99,21 +100,23 @@ Module            | Description
 71 Sonoff iFan03  | Sonoff iFan03 Wifi Smart Ceiling Fan with Light
 72 EXS Dimmer     | EXS Wifi Dimmer v4
 
+Over 500 additional devices are supported using [templates](TEMPLATES.md).
+
 ## Provided Binary Downloads
 The following binary downloads have been compiled with ESP8266/Arduino library core version **pre-2.6.0**.
 
-- **sonoff.bin** = The Sonoff version with sensors. **RECOMMENDED RELEASE BINARY**
-- **sonoff-BG.bin** to **sonoff-TW.bin** = The Sonoff version in different languages.
-- **sonoff-basic.bin** = The Basic version without most sensors.
-- **sonoff-knx.bin** = The Knx version without some features but adds KNX support.
-- **sonoff-sensors.bin** = The Sensors version adds more useful sensors.
-- **sonoff-ir** = The InfraRed Receiver and transmitter version allowing all available protocols provided by library IRremoteESP8266 but without most other features.
-- **sonoff-display.bin** = The Display version without Energy Monitoring but adds display support.
-- **sonoff-minimal.bin** = The Minimal version allows intermediate OTA uploads to support larger versions and does NOT change any persistent parameter. This version **should NOT be used for initial installation**.
+- **tasmota.bin** = The Tasmota version with sensors. **RECOMMENDED RELEASE BINARY**
+- **tasmota-BG.bin** to **tasmota-TW.bin** = The Tasmota version in different languages.
+- **tasmota-basic.bin** = The Basic version without most sensors.
+- **tasmota-knx.bin** = The Knx version without some features but adds KNX support.
+- **tasmota-sensors.bin** = The Sensors version adds more useful sensors.
+- **tasmota-ir** = The InfraRed Receiver and transmitter version allowing all available protocols provided by library IRremoteESP8266 but without most other features.
+- **tasmota-display.bin** = The Display version without Energy Monitoring but adds display support.
+- **tasmota-minimal.bin** = The Minimal version allows intermediate OTA uploads to support larger versions and does NOT change any persistent parameter. This version **should NOT be used for initial installation**.
 
 ## Available Features and Sensors
 
-| Feature or Sensor     | minimal | basic | sonoff | knx | sensors | ir | display | Remarks
+| Feature or Sensor     | minimal | basic | tasmota | knx | sensors | ir | display | Remarks
 |-----------------------|---------|-------|--------|-----|---------|----|---------|--------
 | MY_LANGUAGE en-GB     | x | x | x | x | x | x | x |
 | USE_ARDUINO_OTA       | - | - | - | - | - | - | - |
@@ -139,7 +142,7 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 | USE_EXPRESSION        | - | - | - | - | - | - | - |
 | SUPPORT_IF_STATEMENT  | - | - | - | - | - | - | - |
 |                       |   |   |   |   |   |   |   |
-| Feature or Sensor     | minimal | basic | sonoff | knx | sensors | ir | display | Remarks
+| Feature or Sensor     | minimal | basic | tasmota | knx | sensors | ir | display | Remarks
 | ROTARY_V1             | - | - | - | - | - | - | - |
 | USE_SONOFF_RF         | - | - | x | x | x | - | - |
 | USE_RF_FLASH          | - | - | x | x | x | - | - |
@@ -152,9 +155,9 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 | USE_ARILUX_RF         | - | - | x | x | x | - | - |
 | USE_SHUTTER           | - | - | - | - | - | - | - |
 | USE_DEEPSLEEP         | - | - | - | - | - | - | - |
-| USE_EXS_DIMMER        | - | - | - | - | - | - | - |
+| USE_EXS_DIMMER        | - | - | x | x | - | - | - |
 |                       |   |   |   |   |   |   |   |
-| Feature or Sensor     | minimal | basic | sonoff | knx | sensors | ir | display | Remarks
+| Feature or Sensor     | minimal | basic | tasmota | knx | sensors | ir | display | Remarks
 | USE_LIGHT             | - | x | x | x | x | x | x |
 | USE_WS2812            | - | - | x | x | x | - | x |
 | USE_WS2812_DMA        | - | - | - | - | - | - | - |
@@ -181,7 +184,7 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 | USE_MAX31855          | - | - | - | - | x | - | - |
 | USE_MAX31865          | - | - | - | - | - | - | - |
 |                       |   |   |   |   |   |   |   |
-| Feature or Sensor     | minimal | basic | sonoff | knx | sensors | ir | display | Remarks
+| Feature or Sensor     | minimal | basic | tasmota | knx | sensors | ir | display | Remarks
 | USE_I2C               | - | - | x | x | x | - | x |
 | USE_SHT               | - | - | x | x | x | - | x |
 | USE_HTU               | - | - | x | x | x | - | x |
@@ -217,7 +220,7 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 | USE_PAJ7620           | - | - | - | - | - | - | - |
 | USE_PCF8574           | - | - | - | - | - | - | - |
 |                       |   |   |   |   |   |   |   |
-| Feature or Sensor     | minimal | basic | sonoff | knx | sensors | ir | display | Remarks
+| Feature or Sensor     | minimal | basic | tasmota | knx | sensors | ir | display | Remarks
 | USE_SPI               | - | - | - | - | - | - | x |
 | USE_MHZ19             | - | - | x | x | x | - | x |
 | USE_SENSEAIR          | - | - | x | x | x | - | x |
@@ -243,19 +246,21 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 | USE_A4988_STEPPER     | - | - | - | - | - | - | - |
 | USE_ARDUINO_SLAVE     | - | - | - | - | - | - | - | Experimental
 |                       |   |   |   |   |   |   |   |
-| Feature or Sensor     | minimal | basic | sonoff | knx | sensors | ir | display | Remarks
+| Feature or Sensor     | minimal | basic | tasmota | knx | sensors | ir | display | Remarks
 | USE_DISPLAY           | - | - | - | - | - | - | x |
 | USE_DISPLAY_LCD       | - | - | - | - | - | - | x |
 | USE_DISPLAY_SSD1306   | - | - | - | - | - | - | x |
 | USE_DISPLAY_MATRIX    | - | - | - | - | - | - | x |
 | USE_DISPLAY_SH1106    | - | - | - | - | - | - | x |
 | USE_DISPLAY_ILI9341   | - | - | - | - | - | - | x |
-| USE_DISPLAY_EPAPER_29 | - | - | - | - | - | - | x | Disabled for core 2.3.0
-| USE_DISPLAY_EPAPER_42 | - | - | - | - | - | - | x | Disabled for core 2.3.0
+| USE_DISPLAY_EPAPER_29 | - | - | - | - | - | - | x |
+| USE_DISPLAY_EPAPER_42 | - | - | - | - | - | - | x |
 | USE_DISPLAY_ILI9488   | - | - | - | - | - | - | - |
 | USE_DISPLAY_SSD1351   | - | - | - | - | - | - | - |
 | USE_DISPLAY_RA8876    | - | - | - | - | - | - | - |
 
 ## Changelog
-Version 6.7.0 20191101
- * TBS
+Version 7.1.0 Betty
+ * Change ArduinoSlave to TasmotaSlave (Experimental)
+ * Change repository name from Sonoff-Tasmota to Tasmota and all code references from Sonoff to Tasmota
+ * Add support for Tuya battery powered devices (#6735)
