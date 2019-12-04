@@ -51,23 +51,23 @@ Examples :
 
 // -- Setup your own Wifi settings  ---------------
 #undef  STA_SSID1
-#define STA_SSID1         "DD-EXPRESS"             // [Ssid1] Wifi SSID
+#define STA_SSID1         "YourSSID"             // [Ssid1] Wifi SSID
 
 #undef  STA_PASS1
-#define STA_PASS1         "FLOWERWAVE"     // [Password1] Wifi password
+#define STA_PASS1         "YourWifiPassword"     // [Password1] Wifi password
 
 // -- Setup your own MQTT settings  ---------------
 #undef  MQTT_HOST
-#define MQTT_HOST         "192.168.1.254" // [MqttHost]
+#define MQTT_HOST         "your-mqtt-server.com" // [MqttHost]
 
 #undef  MQTT_PORT
 #define MQTT_PORT         1883                   // [MqttPort] MQTT port (10123 on CloudMQTT)
 
 #undef  MQTT_USER
-#define MQTT_USER         "homeuser1"         // [MqttUser] Optional user
+#define MQTT_USER         "YourMqttUser"         // [MqttUser] Optional user
 
 #undef  MQTT_PASS
-#define MQTT_PASS         "secret7garden"         // [MqttPassword] Optional password
+#define MQTT_PASS         "YourMqttPass"         // [MqttPassword] Optional password
 
 // You might even pass some parameters from the command line ----------------------------
 // Ie:  export PLATFORMIO_BUILD_FLAGS='-DUSE_CONFIG_OVERRIDE -DMY_IP="192.168.1.99" -DMY_GW="192.168.1.1" -DMY_DNS="192.168.1.1"'
@@ -88,6 +88,26 @@ Examples :
 #endif
 
 */
+
+// -- Setup your own Wifi settings  ---------------
+#undef  STA_SSID1
+#define STA_SSID1         "DD-EXPRESS"             // [Ssid1] Wifi SSID
+
+#undef  STA_PASS1
+#define STA_PASS1         "FLOWERWAVE"     // [Password1] Wifi password
+
+// -- Setup your own MQTT settings  ---------------
+#undef  MQTT_HOST
+#define MQTT_HOST         "192.168.1.254" // [MqttHost]
+
+#undef  MQTT_PORT
+#define MQTT_PORT         1883                   // [MqttPort] MQTT port (10123 on CloudMQTT)
+
+#undef  MQTT_USER
+#define MQTT_USER         "homeuser1"         // [MqttUser] Optional user
+
+#undef  MQTT_PASS
+#define MQTT_PASS         "secret7garden"         // [MqttPassword] Optional password
 
 #undef SERIAL_LOG_LEVEL
 #define SERIAL_LOG_LEVEL       LOG_LEVEL_INFO    // [SerialLog] (LOG_LEVEL_NONE, LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG_MORE)
