@@ -479,7 +479,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 
 #undef USE_ZIGBEE                                // Disable serial communication with Zigbee CC2530 flashed with ZNP
 
-//#undef USE_SR04                                  // Disable support for for HC-SR04 ultrasonic devices
+#undef USE_SR04                                  // Disable support for for HC-SR04 ultrasonic devices
 #undef USE_TM1638                                // Disable support for TM1638 switches copying Switch1 .. Switch8
 #undef USE_HX711                                 // Disable support for HX711 load cell
 #undef USE_TX20_WIND_SENSOR                      // Disable support for La Crosse TX20 anemometer
