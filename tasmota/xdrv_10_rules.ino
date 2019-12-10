@@ -1664,6 +1664,10 @@ void RulesPreprocessCommand(char *pCommands)
     if (';' == *cmd || isspace(*cmd)) {
       cmd++;
     }
+    else if (strncasecmp_P(cmd, PSTR("BACKLOG "), 8) == 0) {      //Backlog command
+      //Skip "BACKLOG " command
+      cmd += 8;
+    }
     else if (strncasecmp_P(cmd, PSTR("IF "), 3) == 0) {      //found IF block
                                                              //We are going to look for matched "ENDIF"
       char * pIfStart = cmd;
