@@ -460,14 +460,14 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
       char command[commands.length() +1];
       strlcpy(command, commands.c_str(), sizeof(command));
 
-      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: %s performs \"%s\""), event_trigger.c_str(), command);
-
 //      Response_P(S_JSON_COMMAND_SVALUE, D_CMND_RULE, D_JSON_INITIATED);
 //      MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_RULE));
 #ifdef SUPPORT_IF_STATEMENT
       char *pCmd = command;
       RulesPreprocessCommand(pCmd);                       // Do pre-process for IF statement
 #endif
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: %s performs \"%s\""), event_trigger.c_str(), command);
+
       ExecuteCommand(command, SRC_RULE);
       serviced = true;
       if (stop_all_rules) { return serviced; }            // If BREAK was used, Stop execution of this rule set
